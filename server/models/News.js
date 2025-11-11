@@ -17,6 +17,8 @@ const newsSchema = new mongoose.Schema(
     views: { type: Number, default: 0 },
     image: { type: String },
     cloudinaryPublicId: { type: String },
+    // optional YouTube link for video version of the news
+    youtubeLink: { type: String },
     // whether this article is selected as a site headline by the owner
     headline: { type: Boolean, default: false },
     // moderation fields

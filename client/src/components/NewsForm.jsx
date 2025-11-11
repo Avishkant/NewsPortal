@@ -25,6 +25,7 @@ export default function NewsForm({
   const [imagePublicId, setImagePublicId] = useState(
     initial.imagePublicId || ""
   );
+  const [youtubeLink, setYoutubeLink] = useState(initial.youtubeLink || "");
   const [headline, setHeadline] = useState(!!initial.headline);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -83,6 +84,7 @@ export default function NewsForm({
     setSlug(initial.slug || "");
     setCategory(initial.category || "");
     setDistrict(initial.district || "");
+    setYoutubeLink(initial.youtubeLink || "");
     setContent(initial.content || "");
     setImage(initial.image || "");
     setImagePublicId(initial.imagePublicId || "");
@@ -241,6 +243,7 @@ export default function NewsForm({
       slug,
       category,
       district,
+      youtubeLink,
       content: currentContent,
       image,
       imagePublicId,
@@ -298,7 +301,7 @@ export default function NewsForm({
         </div>
 
         {/* Slug Input */}
-        <div>
+        {/* <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Slug (URL identifier)
           </label>
@@ -308,7 +311,7 @@ export default function NewsForm({
             placeholder="article-slug-here"
             className="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition duration-200 text-gray-900 font-mono text-sm"
           />
-        </div>
+        </div> */}
       </div>
 
       {/* Group 2: Category and Featured Image */}
@@ -417,6 +420,18 @@ export default function NewsForm({
               </option>
             ))}
           </select>
+        </div>
+        {/* YouTube Link (optional) */}
+        <div className="lg:col-span-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            YouTube Link (optional)
+          </label>
+          <input
+            value={youtubeLink}
+            onChange={(e) => setYoutubeLink(e.target.value)}
+            placeholder="https://www.youtube.com/watch?v=..."
+            className="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition duration-200 text-gray-900"
+          />
         </div>
         {/* Featured Image Upload */}
         <div className="p-4 border border-gray-300 rounded-lg bg-gray-50 shadow-inner">

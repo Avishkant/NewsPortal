@@ -56,6 +56,8 @@ export default function NewsList() {
     const dist = params.get("district") || "";
     setCategory(cat);
     setDistrict(dist);
+    // optionally you could store the query in state if needed
+    // setSearch(q);
   }, [location.search]);
 
   useEffect(() => {
@@ -64,11 +66,15 @@ export default function NewsList() {
     if (category) q += `category=${encodeURIComponent(category)}`;
     if (district)
       q += `${q ? "&" : ""}district=${encodeURIComponent(district)}`;
+    // include search query if present in URL
+    const params = new URLSearchParams(location.search);
+    const searchQ = params.get("q");
+    if (searchQ) q += `${q ? "&" : ""}q=${encodeURIComponent(searchQ)}`;
     const qs = q ? `?${q}` : "";
     apiFetch(`/api/news${qs}`)
       .then((data) => setItems(data || []))
       .finally(() => setLoading(false));
-  }, [category, district]);
+  }, [category, district, location.search]);
 
   const categories = Array.from(new Set(items.map((i) => i.category))).filter(
     Boolean

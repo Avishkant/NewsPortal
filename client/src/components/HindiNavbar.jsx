@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import logo from "../assets/logo.jpg";
 import { Search, Menu, X, User, ChevronDown } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
@@ -60,6 +60,19 @@ export default function HindiNavbar() {
   const [isFixed, setIsFixed] = useState(false);
   const firstMenuLinkRef = useRef(null);
   const { user } = useAuth() || {};
+  const navigate = useNavigate();
+  const [desktopSearch, setDesktopSearch] = useState("");
+  const [mobileSearch, setMobileSearch] = useState("");
+
+  const submitSearch = (term) => {
+    const q = String(term || "").trim();
+    if (!q) return;
+    // Navigate to news list with q param
+    navigate(`/news?q=${encodeURIComponent(q)}`);
+    // close mobile search panel if open
+    setMobileSearchOpen(false);
+    setMobileMenuOpen(false);
+  };
   // refs and state for accessibility of district dropdown
   const districtButtonRef = useRef(null);
   const districtMenuRefs = useRef([]);
@@ -133,9 +146,9 @@ export default function HindiNavbar() {
       try {
         const cats = await apiFetch("/api/categories");
         if (mounted && Array.isArray(cats) && cats.length > 0) {
-          setCategories(
-            cats.map((c) => ({ key: c.slug || c._id || c.name, label: c.name }))
-          );
+          // Use category name as the key so links match the category value
+          // stored on News documents (we persist category by name).
+          setCategories(cats.map((c) => ({ key: c.name, label: c.name })));
         }
       } catch (err) {
         // ignore and keep fallback categories
@@ -145,9 +158,9 @@ export default function HindiNavbar() {
       try {
         const d = await apiFetch("/api/districts");
         if (mounted && Array.isArray(d) && d.length > 0) {
-          setMpDistricts(
-            d.map((x) => ({ key: x.slug || x._id || x.name, label: x.name }))
-          );
+          // Use district name as key so the query param matches the
+          // district value saved on news items (NewsForm uses district.name)
+          setMpDistricts(d.map((x) => ({ key: x.name, label: x.name })));
         }
       } catch (err) {
         console.warn("Failed to load districts", err.message || err);
@@ -210,11 +223,17 @@ export default function HindiNavbar() {
             <div className="hidden lg:flex items-stretch">
               <input
                 type="search"
+                value={desktopSearch}
+                onChange={(e) => setDesktopSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") submitSearch(desktopSearch);
+                }}
                 placeholder="समाचार खोजें..."
                 aria-label="समाचार खोजें"
                 className="px-3 py-2 rounded-l-md border border-r-0 border-white/50 w-64 focus:ring-white focus:border-white/50 bg-white/10 text-white placeholder-white/70 transition duration-200 ease-in-out text-sm"
               />
               <motion.button
+                onClick={() => submitSearch(desktopSearch)}
                 className="text-white px-4 py-2 rounded-r-md transition duration-200 ease-in-out flex items-center justify-center text-sm"
                 style={{ backgroundColor: SECONDARY_TEAL }} // Use Teal for search button contrast
                 whileHover={{ scale: 1.05 }}
@@ -300,11 +319,17 @@ export default function HindiNavbar() {
             <div className="px-4 py-3 flex items-center gap-2">
               <input
                 type="search"
+                value={mobileSearch}
+                onChange={(e) => setMobileSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") submitSearch(mobileSearch);
+                }}
                 placeholder="समाचार खोजें..."
                 aria-label="समाचार खोजें"
                 className="flex-1 px-3 py-2 rounded-md border border-white/50 bg-white/10 text-white placeholder-white/70 text-sm focus:ring-white focus:border-white/50"
               />
               <motion.button
+                onClick={() => submitSearch(mobileSearch)}
                 className="text-white px-4 py-2 rounded-md transition duration-200"
                 style={{ backgroundColor: SECONDARY_TEAL }} // Teal search button
                 whileHover={{ scale: 1.05 }}

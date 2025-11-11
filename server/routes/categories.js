@@ -52,9 +52,11 @@ router.delete(
   asyncHandler(async (req, res) => {
     if (!req.user || req.user.role !== "owner")
       return res.status(403).json({ message: "Forbidden" });
-    const cat = await Category.findById(req.params.id);
+    // Use findByIdAndDelete to avoid issues where the returned object is a plain
+    // POJO (not a Mongoose document) and doesn't have instance methods like
+    // `remove`. This is also simpler and atomic.
+    const cat = await Category.findByIdAndDelete(req.params.id);
     if (!cat) return res.status(404).json({ message: "Not found" });
-    await cat.remove();
     res.json({ message: "Deleted" });
   })
 );

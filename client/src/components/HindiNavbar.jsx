@@ -4,10 +4,11 @@ import { Search, Menu, X, User } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { motion, AnimatePresence } from "framer-motion";
+import HeadlineMarquee from "./HeadlineMarquee.jsx";
 
 // Define the custom primary color
-const PRIMARY_VIVID_RED = "#ef0202ff"; // The requested background color
-const SECONDARY_TEAL = "#14B8A6"; // Secondary accent color for links/buttons
+const PRIMARY_VIVID_RED = "#a61616ff"; // The requested background color
+const SECONDARY_TEAL = "#0a6358ff"; // Secondary accent color for links/buttons
 
 // Custom Motion component for navigation links (retained for motion)
 const NavItem = ({ to, children, className = "" }) => (
@@ -182,6 +183,7 @@ export default function HindiNavbar() {
           </div>
         </div>
       </div>
+      {/* Headline marquee will be shown below the category nav to keep header compact */}
 
       {/* Mobile search panel */}
       <AnimatePresence>
@@ -259,41 +261,39 @@ export default function HindiNavbar() {
       </AnimatePresence>
 
       {/* 🟢 Full-width Category Nav - USES WHITE BACKGROUND */}
-      {user?.role !== "owner" && (
-        <nav
-          className="shadow-md bg-white border-b border-gray-200" // Use white background and subtle gray border
-        >
-          <div className="max-w-screen-xl mx-auto px-4 hidden lg:block">
-            <div className="flex items-center overflow-x-auto whitespace-nowrap py-2">
-              {categories.map((c) => (
-                <Link
-                  key={c.key}
-                  to={c.key === "home" ? "/" : `/category/${c.key}`}
-                  // Category links use dark text on white background
-                  className="text-gray-800 text-sm font-semibold px-4 py-1 rounded-full transition duration-150 ease-in-out mx-1 tracking-wider"
-                  style={{
-                    // Highlight the active/home link with the secondary accent (Teal)
-                    backgroundColor:
-                      c.key === "home" ? SECONDARY_TEAL : "transparent",
-                    color: c.key === "home" ? "white" : "black",
-                  }}
-                  onClick={closeMobilePanels}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.backgroundColor =
-                      c.key === "home" ? SECONDARY_TEAL : "rgba(0, 0, 0, 0.05)")
-                  } // Subtle gray hover on non-home
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.backgroundColor =
-                      c.key === "home" ? SECONDARY_TEAL : "transparent")
-                  } // Reset
-                >
-                  {c.label}
-                </Link>
-              ))}
-            </div>
+      <nav className="shadow-md bg-white border-b border-gray-200">
+        <div className="max-w-screen-xl mx-auto px-4 hidden lg:block">
+          <div className="flex items-center overflow-x-auto whitespace-nowrap py-2">
+            {categories.map((c) => (
+              <Link
+                key={c.key}
+                to={c.key === "home" ? "/" : `/category/${c.key}`}
+                // Category links use dark text on white background
+                className="text-gray-800 text-sm font-semibold px-4 py-1 rounded-full transition duration-150 ease-in-out mx-1 tracking-wider"
+                style={{
+                  // Highlight the active/home link with the secondary accent (Teal)
+                  backgroundColor:
+                    c.key === "home" ? SECONDARY_TEAL : "transparent",
+                  color: c.key === "home" ? "white" : "black",
+                }}
+                onClick={closeMobilePanels}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.backgroundColor =
+                    c.key === "home" ? SECONDARY_TEAL : "rgba(0, 0, 0, 0.05)")
+                } // Subtle gray hover on non-home
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.backgroundColor =
+                    c.key === "home" ? SECONDARY_TEAL : "transparent")
+                } // Reset
+              >
+                {c.label}
+              </Link>
+            ))}
           </div>
-        </nav>
-      )}
+        </div>
+      </nav>
+      {/* render marquee below the category nav so it appears under the navbar */}
+      <HeadlineMarquee speed={22} />
     </header>
   );
 }

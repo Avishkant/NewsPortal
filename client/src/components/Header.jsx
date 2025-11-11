@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, Search, LogOut, User } from "lucide-react";
 
 // Define the custom primary and accent colors
-const PRIMARY_VIVID_RED = "#EB2121"; // The requested background color
+const PRIMARY_VIVID_RED = "#1b0606ff"; // The requested background color
 const SECONDARY_TEAL = "#14B8A6";      // Complementary accent color
 
 // Custom Motion component for navigation links

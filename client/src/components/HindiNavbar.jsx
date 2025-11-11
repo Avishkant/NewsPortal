@@ -38,6 +38,10 @@ export default function HindiNavbar() {
 
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const navRef = useRef(null);
+  const [navHeight, setNavHeight] = useState(0);
+  const [navTop, setNavTop] = useState(0);
+  const [isFixed, setIsFixed] = useState(false);
   const firstMenuLinkRef = useRef(null);
   const { user } = useAuth() || {};
 
@@ -58,6 +62,37 @@ export default function HindiNavbar() {
       setTimeout(() => firstMenuLinkRef.current.focus(), 50);
     }
   }, [mobileMenuOpen]);
+
+  // measure nav position and height and toggle fixed state on scroll
+  useEffect(() => {
+    function measure() {
+      if (!navRef.current) return;
+      const rect = navRef.current.getBoundingClientRect();
+      const top = rect.top + window.scrollY;
+      setNavTop(top);
+      setNavHeight(navRef.current.offsetHeight || rect.height || 0);
+    }
+
+    function onScroll() {
+      if (window.scrollY >= navTop) setIsFixed(true);
+      else setIsFixed(false);
+    }
+
+    // initial measure
+    measure();
+    // measure on resize
+    window.addEventListener("resize", measure);
+    // update fixed state on scroll
+    window.addEventListener("scroll", onScroll, { passive: true });
+
+    // also run on load in case user refreshed mid-page
+    onScroll();
+
+    return () => {
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, [navTop]);
 
   const toggleMobileSearch = () => {
     setMobileMenuOpen(false);
@@ -82,7 +117,7 @@ export default function HindiNavbar() {
     : "/";
 
   return (
-    <header className="w-full shadow-2xl sticky top-0 z-50">
+    <header className="w-full shadow-2xl">
       {/* 🚀 Top Strip: Logo, Search, and Auth Status - Uses Vivid Red */}
       <div
         className="border-b border-white/20"
@@ -261,7 +296,12 @@ export default function HindiNavbar() {
       </AnimatePresence>
 
       {/* 🟢 Full-width Category Nav - USES WHITE BACKGROUND */}
-      <nav className="shadow-md bg-white border-b border-gray-200">
+      <nav
+        ref={navRef}
+        className={`${
+          isFixed ? "fixed top-0 left-0 right-0 z-50" : "relative"
+        } shadow-md bg-white border-b border-gray-200`}
+      >
         <div className="max-w-screen-xl mx-auto px-4 hidden lg:block">
           <div className="flex items-center overflow-x-auto whitespace-nowrap py-2">
             {categories.map((c) => (
@@ -292,6 +332,8 @@ export default function HindiNavbar() {
           </div>
         </div>
       </nav>
+      {/* spacer inserted only when nav is fixed to prevent content jump */}
+      {isFixed && <div style={{ height: navHeight }} aria-hidden />}
       {/* render marquee below the category nav so it appears under the navbar */}
       <HeadlineMarquee speed={22} />
     </header>

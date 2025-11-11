@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@import "tailwindcss";
+/* Base resets and app defaults */
+:root {
+  /* --bg: #062b2b; darker teal base */
+  --bg: #ffffff;
+  --primary: #0ea5a4;
+  --accent: #f59e0b;
+  --card: #f8fafc; /* Very light gray for card surfaces */
+  --muted: #64748b; /* Darker text/muted elements */
+}
+
+@layer base {
+  html, body, #root {
+    height: 100%;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: #1f2937; /* Dark text for readability */
+    /* ... other font settings ... */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+    line-height: 1.4;
+    margin: 0;
+  }
+
+  a {
+    color: var(--primary);
+    transition: color 150ms ease-in-out;
+  }
+
+  a:hover {
+    color: var(--accent);
+  }
+
+  /* small card used across the app */
+  /* Base resets and app defaults */
+.card {
+    background-color: var(--card); /* Light background */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); /* Lighter shadow */
+    border-radius: 0.75rem;
+    padding: 1rem;
+  }
+/* You also added a Tailwind utility override which conflicts: */
+.card {
+  @apply bg-slate-800 shadow-md rounded-lg p-4;
+}
+}
+
+/* utility for subtle floating animation */
+.float-anim { animation: float 6s ease-in-out infinite; }
+
+
+/* Base resets and app defaults */

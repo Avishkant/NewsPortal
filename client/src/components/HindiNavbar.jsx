@@ -1,0 +1,299 @@
+import { Link } from "react-router-dom";
+import logo from "../assets/logo.jpg";
+import { Search, Menu, X, User } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { useAuth } from "../contexts/AuthContext.jsx";
+import { motion, AnimatePresence } from "framer-motion";
+
+// Define the custom primary color
+const PRIMARY_VIVID_RED = "#ef0202ff"; // The requested background color
+const SECONDARY_TEAL = "#14B8A6"; // Secondary accent color for links/buttons
+
+// Custom Motion component for navigation links (retained for motion)
+const NavItem = ({ to, children, className = "" }) => (
+  <motion.div whileHover={{ scale: 1.05 }} transition={{ duration: 0.2 }}>
+    <Link
+      to={to}
+      className={`px-3 py-1 rounded hover:bg-white/20 transition duration-200 ${className}`}
+    >
+      {children}
+    </Link>
+  </motion.div>
+);
+
+export default function HindiNavbar() {
+  const categories = [
+    { key: "home", label: "होम" },
+    { key: "jaipur", label: "जयपुर" },
+    { key: "rajasthan", label: "राजस्थान" },
+    { key: "india", label: "भारत" },
+    { key: "entertainment", label: "मनोरंजन" },
+    { key: "sports", label: "खेल" },
+    { key: "world", label: "वर्ल्ड" },
+    { key: "reels", label: "रील्स" },
+    { key: "aqi", label: "AQI" },
+    { key: "epaper", label: "ई-पेपर" },
+  ];
+
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const firstMenuLinkRef = useRef(null);
+  const { user } = useAuth() || {};
+
+  // Close panels with Escape and focus management (Logic retained)
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "Escape") {
+        setMobileSearchOpen(false);
+        setMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  useEffect(() => {
+    if (mobileMenuOpen && firstMenuLinkRef.current) {
+      setTimeout(() => firstMenuLinkRef.current.focus(), 50);
+    }
+  }, [mobileMenuOpen]);
+
+  const toggleMobileSearch = () => {
+    setMobileMenuOpen(false);
+    setMobileSearchOpen((v) => !v);
+  };
+  const toggleMobileMenu = () => {
+    setMobileSearchOpen(false);
+    setMobileSearchOpen(false);
+    setMobileMenuOpen((v) => !v);
+  };
+  const closeMobilePanels = () => {
+    setMobileSearchOpen(false);
+    setMobileMenuOpen(false);
+  };
+
+  const dashboardLink = user
+    ? user.role === "owner"
+      ? "/owner"
+      : user.role === "reporter"
+      ? "/reporter"
+      : "/"
+    : "/";
+
+  return (
+    <header className="w-full shadow-2xl sticky top-0 z-50">
+      {/* 🚀 Top Strip: Logo, Search, and Auth Status - Uses Vivid Red */}
+      <div
+        className="border-b border-white/20"
+        style={{ backgroundColor: PRIMARY_VIVID_RED }}
+      >
+        <div className="max-w-screen-xl mx-auto px-4 py-3 flex items-center justify-between">
+          {/* Logo */}
+          <motion.div
+            className="flex items-center"
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <Link to={dashboardLink}>
+              <img
+                src={logo}
+                alt="लोगो"
+                className="h-12 md:h-16 w-auto object-contain transition duration-300 hover:scale-[1.05] transform"
+              />
+            </Link>
+          </motion.div>
+
+          {/* Search, Auth, and Mobile Toggles */}
+          <div className="flex items-center gap-3">
+            {/* Desktop search */}
+            <div className="hidden lg:flex items-stretch">
+              <input
+                type="search"
+                placeholder="समाचार खोजें..."
+                aria-label="समाचार खोजें"
+                className="px-3 py-2 rounded-l-md border border-r-0 border-white/50 w-64 focus:ring-white focus:border-white/50 bg-white/10 text-white placeholder-white/70 transition duration-200 ease-in-out text-sm"
+              />
+              <motion.button
+                className="text-white px-4 py-2 rounded-r-md transition duration-200 ease-in-out flex items-center justify-center text-sm"
+                style={{ backgroundColor: SECONDARY_TEAL }} // Use Teal for search button contrast
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Search className="h-4 w-4 mr-2" />
+                <span>खोजें</span>
+              </motion.button>
+            </div>
+
+            {/* Auth/Dashboard Link */}
+            {user ? (
+              <motion.div whileHover={{ scale: 1.05 }}>
+                <Link
+                  to={dashboardLink}
+                  aria-label={`Go to ${user.role} dashboard`}
+                  className="p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition duration-200 ease-in-out flex items-center justify-center shadow-md"
+                >
+                  <User className="h-5 w-5" />
+                </Link>
+              </motion.div>
+            ) : (
+              <motion.div whileHover={{ scale: 1.05 }}>
+                <Link
+                  to="/login"
+                  aria-label="Login"
+                  className="hidden sm:flex items-center text-white px-3 py-1.5 rounded-md text-sm font-medium transition duration-200 shadow-md"
+                  style={{ backgroundColor: SECONDARY_TEAL }} // Use Teal for login button contrast
+                >
+                  <User className="h-4 w-4 mr-1" /> लॉग इन करें
+                </Link>
+              </motion.div>
+            )}
+
+            {/* Mobile Toggles */}
+            <div className="flex items-center gap-2 lg:hidden">
+              <motion.button
+                onClick={toggleMobileSearch}
+                aria-expanded={mobileSearchOpen}
+                aria-label="Toggle search"
+                className="p-2 rounded-full bg-white/20 text-white hover:bg-white/30 transition duration-200"
+                whileTap={{ scale: 0.9 }}
+              >
+                {mobileSearchOpen ? (
+                  <X className="h-5 w-5" />
+                ) : (
+                  <Search className="h-5 w-5" />
+                )}
+              </motion.button>
+
+              <motion.button
+                onClick={toggleMobileMenu}
+                aria-expanded={mobileMenuOpen}
+                aria-label="Toggle menu"
+                className="p-2 rounded-full bg-white/20 text-white hover:bg-white/30 transition duration-200"
+                whileTap={{ scale: 0.9 }}
+              >
+                {mobileMenuOpen ? (
+                  <X className="h-5 w-5" />
+                ) : (
+                  <Menu className="h-5 w-5" />
+                )}
+              </motion.button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile search panel */}
+      <AnimatePresence>
+        {mobileSearchOpen && (
+          <motion.div
+            key="mobile-search"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="lg:hidden absolute w-full border-b border-gray-700 overflow-hidden"
+            style={{ backgroundColor: PRIMARY_VIVID_RED }} // Use Vivid Red BG for consistency
+            aria-hidden={!mobileSearchOpen}
+          >
+            <div className="px-4 py-3 flex items-center gap-2">
+              <input
+                type="search"
+                placeholder="समाचार खोजें..."
+                aria-label="समाचार खोजें"
+                className="flex-1 px-3 py-2 rounded-md border border-white/50 bg-white/10 text-white placeholder-white/70 text-sm focus:ring-white focus:border-white/50"
+              />
+              <motion.button
+                className="text-white px-4 py-2 rounded-md transition duration-200"
+                style={{ backgroundColor: SECONDARY_TEAL }} // Teal search button
+                whileHover={{ scale: 1.05 }}
+              >
+                खोजें
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Mobile menu panel */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div
+            key="mobile-menu"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+            className="lg:hidden absolute w-full bg-white shadow-lg overflow-hidden"
+            aria-hidden={!mobileMenuOpen}
+          >
+            <div className="flex flex-col px-4 py-2">
+              {categories.map((c, index) => (
+                <Link
+                  key={c.key}
+                  to={c.key === "home" ? "/" : `/category/${c.key}`}
+                  ref={index === 0 ? firstMenuLinkRef : undefined}
+                  className="text-gray-800 text-base font-medium py-2 border-b border-gray-100 hover:text-red-700 hover:bg-gray-50 transition duration-150"
+                  onClick={closeMobilePanels}
+                  role="menuitem"
+                  tabIndex={0}
+                >
+                  {c.label}
+                </Link>
+              ))}
+              {/* Mobile Auth Links */}
+              {!user && (
+                <Link
+                  to="/login"
+                  className="mt-2 text-base font-medium py-2 rounded-md transition duration-150 flex items-center"
+                  style={{ color: PRIMARY_VIVID_RED }} // Use primary red for mobile login button text
+                  onClick={closeMobilePanels}
+                  role="menuitem"
+                >
+                  <User className="h-4 w-4 mr-2" /> लॉग इन करें
+                </Link>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 🟢 Full-width Category Nav - USES WHITE BACKGROUND */}
+      {user?.role !== "owner" && (
+        <nav
+          className="shadow-md bg-white border-b border-gray-200" // Use white background and subtle gray border
+        >
+          <div className="max-w-screen-xl mx-auto px-4 hidden lg:block">
+            <div className="flex items-center overflow-x-auto whitespace-nowrap py-2">
+              {categories.map((c) => (
+                <Link
+                  key={c.key}
+                  to={c.key === "home" ? "/" : `/category/${c.key}`}
+                  // Category links use dark text on white background
+                  className="text-gray-800 text-sm font-semibold px-4 py-1 rounded-full transition duration-150 ease-in-out mx-1 tracking-wider"
+                  style={{
+                    // Highlight the active/home link with the secondary accent (Teal)
+                    backgroundColor:
+                      c.key === "home" ? SECONDARY_TEAL : "transparent",
+                    color: c.key === "home" ? "white" : "black",
+                  }}
+                  onClick={closeMobilePanels}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.backgroundColor =
+                      c.key === "home" ? SECONDARY_TEAL : "rgba(0, 0, 0, 0.05)")
+                  } // Subtle gray hover on non-home
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.backgroundColor =
+                      c.key === "home" ? SECONDARY_TEAL : "transparent")
+                  } // Reset
+                >
+                  {c.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </nav>
+      )}
+    </header>
+  );
+}

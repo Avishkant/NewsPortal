@@ -29,6 +29,19 @@ export async function apiFetch(
     parsed = JSON.parse(txt);
   } catch {
     parsed = txt;
+    // If server returned an HTML error page (Express default error handler),
+    // try to extract a useful message out of any <pre>...</pre> block or strip tags.
+    if (typeof parsed === "string" && /<html|<!doctype html>/i.test(parsed)) {
+      // try to extract content inside <pre> tags first
+      const preMatch = parsed.match(/<pre[^>]*>([\s\S]*?)<\/pre>/i);
+      if (preMatch && preMatch[1]) {
+        // remove any tags inside pre and trim
+        parsed = preMatch[1].replace(/<[^>]+>/g, "").trim();
+      } else {
+        // fallback: strip all HTML tags
+        parsed = parsed.replace(/<[^>]+>/g, "").trim();
+      }
+    }
   }
 
   if (!res.ok) {

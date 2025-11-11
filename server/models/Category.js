@@ -2,8 +2,8 @@ import mongoose from "mongoose";
 
 const CategorySchema = new mongoose.Schema(
   {
-    name: { type: String, required: true },
-    slug: { type: String, required: true, unique: true },
+    // Keep only the name for categories; slug removed to simplify i18n and management
+    name: { type: String, required: true, unique: true },
   },
   { timestamps: true }
 );

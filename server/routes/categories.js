@@ -23,26 +23,8 @@ router.post(
       return res.status(403).json({ message: "Forbidden" });
     const { name, slug } = req.body;
     if (!name) return res.status(400).json({ message: "Missing fields" });
-
-    // generate a URL-friendly slug from name if not provided
-    const slugify = (s) =>
-      String(s)
-        .toLowerCase()
-        .trim()
-        .replace(/[^a-z0-9\s-]/g, "")
-        .replace(/\s+/g, "-")
-        .replace(/-+/g, "-");
-
-    const baseSlug =
-      slug && String(slug).trim() ? slugify(slug) : slugify(name);
-    let uniqueSlug = baseSlug;
-    let counter = 1;
-    // ensure uniqueness by appending a counter when needed
-    while (await Category.findOne({ slug: uniqueSlug })) {
-      uniqueSlug = `${baseSlug}-${counter++}`;
-    }
-
-    const cat = await Category.create({ name, slug: uniqueSlug });
+    // Create a category by name only. Name is unique in the schema.
+    const cat = await Category.create({ name });
     res.status(201).json(cat);
   })
 );
@@ -58,7 +40,6 @@ router.put(
     if (!cat) return res.status(404).json({ message: "Not found" });
     const { name, slug } = req.body;
     if (name !== undefined) cat.name = name;
-    if (slug !== undefined) cat.slug = slug;
     await cat.save();
     res.json(cat);
   })

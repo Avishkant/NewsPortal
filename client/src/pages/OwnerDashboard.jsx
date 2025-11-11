@@ -21,6 +21,7 @@ import {
   Zap,
   Search,
   Menu,
+  MapPin,
 } from "lucide-react";
 
 export default function OwnerDashboard() {
@@ -32,12 +33,16 @@ export default function OwnerDashboard() {
   const [editingNews, setEditingNews] = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
   const [categories, setCategories] = useState([]);
+  const [districts, setDistricts] = useState([]);
   const [loadError, setLoadError] = useState(null);
   const [editingCategory, setEditingCategory] = useState(null);
+  const [editingDistrict, setEditingDistrict] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmOpts, setConfirmOpts] = useState(null);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [categoryModalMode, setCategoryModalMode] = useState("create");
+  const [districtModalOpen, setDistrictModalOpen] = useState(false);
+  const [districtModalMode, setDistrictModalMode] = useState("create");
   const [sortBy, setSortBy] = useState("newest");
   const [filterCategory, setFilterCategory] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
@@ -75,11 +80,26 @@ export default function OwnerDashboard() {
     }
   };
 
+  const loadDistricts = async () => {
+    try {
+      const d = await authFetch("/api/districts");
+      setDistricts(d || []);
+    } catch (err) {
+      console.error("Failed to load districts", err);
+      setDistricts([]);
+    }
+  };
+
   useEffect(() => {
     (async () => {
       setLoadError(null);
       try {
-        await Promise.all([loadReporters(), loadNews(), loadCategories()]);
+        await Promise.all([
+          loadReporters(),
+          loadNews(),
+          loadCategories(),
+          loadDistricts(),
+        ]);
       } catch (err) {
         console.error("OwnerDashboard initialization failed", err);
         setLoadError(err?.message || "Failed to load dashboard data");
@@ -305,6 +325,74 @@ export default function OwnerDashboard() {
     }
   };
 
+  // --- District Management ---
+  function openDistrictModal(mode = "create", data = null) {
+    setDistrictModalMode(mode);
+    if (mode === "edit" && data) {
+      setEditingDistrict({ ...data });
+    } else {
+      setEditingDistrict({ name: "", state: "" });
+    }
+    setDistrictModalOpen(true);
+  }
+
+  const startEditDistrict = (d) => openDistrictModal("edit", d);
+
+  const deleteDistrict = async (id) => {
+    if (!id) return;
+    if (!confirm("Delete this district?")) return;
+    try {
+      await authFetch(`/api/districts/${id}`, { method: "DELETE" });
+      await loadDistricts();
+      showToast({ type: "success", message: "District deleted" });
+    } catch (err) {
+      console.error("Failed to delete district", err);
+      showToast({
+        type: "error",
+        message: err?.message || "Failed to delete district",
+      });
+    }
+  };
+
+  async function submitDistrictModal(e) {
+    e && e.preventDefault && e.preventDefault();
+    if (!editingDistrict) return;
+    const body = { name: editingDistrict.name };
+    if (editingDistrict.state) body.state = editingDistrict.state;
+    if (districtModalMode === "edit" && editingDistrict.slug) {
+      body.slug = editingDistrict.slug;
+    }
+    try {
+      let res;
+      if (districtModalMode === "create") {
+        res = await authFetch("/api/districts", { method: "POST", body });
+      } else if (districtModalMode === "edit" && editingDistrict._id) {
+        res = await authFetch(`/api/districts/${editingDistrict._id}`, {
+          method: "PUT",
+          body,
+        });
+      }
+      if (res && (res._id || res.id)) {
+        setDistrictModalOpen(false);
+        setEditingDistrict(null);
+        await loadDistricts();
+        showToast({ type: "success", message: "District saved" });
+      } else {
+        console.error("Save district failed", res);
+        showToast({
+          type: "error",
+          message: res?.message || "Failed to save district",
+        });
+      }
+    } catch (err) {
+      console.error("Failed to save district", err);
+      showToast({
+        type: "error",
+        message: err?.message || "Failed to save district",
+      });
+    }
+  }
+
   function openConfirm(opts) {
     setConfirmOpts(opts || null);
     setConfirmOpen(true);
@@ -328,11 +416,8 @@ export default function OwnerDashboard() {
   async function submitCategoryModal(e) {
     e && e.preventDefault && e.preventDefault();
     if (!editingCategory) return;
-    // For creation we let the server generate a slug; only include slug when editing
+    // Create/update by name only. Slug removed from server model.
     const body = { name: editingCategory.name };
-    if (categoryModalMode === "edit" && editingCategory.slug) {
-      body.slug = editingCategory.slug;
-    }
     try {
       let res;
       if (categoryModalMode === "create") {
@@ -522,6 +607,13 @@ export default function OwnerDashboard() {
             icon: <Grid className="h-5 w-5" />,
           },
           {
+            key: "districts",
+            label: "Districts",
+            onClick: () => setActiveTab("districts"),
+            active: activeTab === "districts",
+            icon: <MapPin className="h-5 w-5" />,
+          },
+          {
             key: "create",
             label: "Create News",
             onClick: () => {
@@ -573,6 +665,17 @@ export default function OwnerDashboard() {
           >
             Home
           </Link>
+          {/* Mobile-only create button: visible on small screens where sidebar is hidden */}
+          <button
+            onClick={() => {
+              setActiveTab("create");
+              setEditingNews({ category: "" });
+            }}
+            className="px-3 py-2 bg-[var(--primary)] text-white rounded hover:bg-teal-600 transition lg:hidden"
+            aria-label="Create News"
+          >
+            Create News
+          </button>
         </div>
 
         {/* Overview Tab & Summary Cards */}
@@ -775,6 +878,7 @@ export default function OwnerDashboard() {
                   }}
                   onCancel={() => setEditingNews(null)}
                   categories={categories}
+                  districts={districts}
                 />
               </Suspense>
             </ErrorBoundary>
@@ -1100,7 +1204,8 @@ export default function OwnerDashboard() {
                         {c.name}
                       </div>
                       <div className="text-sm text-[var(--muted)] font-mono">
-                        Slug: {c.slug}
+                        {/* Slug removed from categories - showing createdAt for reference */}
+                        Created: {new Date(c.createdAt).toLocaleDateString()}
                       </div>
                     </div>
                     <div className="flex gap-2">
@@ -1119,6 +1224,60 @@ export default function OwnerDashboard() {
                       >
                         {/* ... icon ... */}
                       </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </section>
+        )}
+
+        {/* Districts Tab */}
+        {activeTab === "districts" && (
+          <section>
+            <h3 className="text-2xl font-semibold mb-4 text-gray-900">
+              Manage Districts
+            </h3>
+            <div className="mb-6">
+              <button
+                onClick={() => openDistrictModal("create")}
+                className="px-5 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-teal-600 transition shadow-md flex items-center transform hover:scale-[1.02]"
+              >
+                <Plus className="h-5 w-5 mr-2" /> Create New District
+              </button>
+            </div>
+
+            <div className="p-6 bg-white rounded-xl shadow-lg max-w-lg">
+              <ul className="space-y-3">
+                {districts.map((d) => (
+                  <li
+                    key={d._id}
+                    className="p-3 border border-gray-200 rounded-lg flex justify-between items-center bg-gray-50 hover:bg-gray-100 transition duration-200 transform hover:translate-x-0.5"
+                  >
+                    <div>
+                      <div className="font-semibold text-gray-900">
+                        {d.name}
+                      </div>
+                      <div className="text-sm text-[var(--muted)] font-mono">
+                        Slug: {d.slug}
+                      </div>
+                      {d.state && (
+                        <div className="text-sm text-[var(--muted)]">
+                          State: {d.state}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => startEditDistrict(d)}
+                        className="p-2 bg-yellow-500 text-white rounded-full hover:bg-yellow-600 transition transform hover:scale-110"
+                        title="Edit"
+                      ></button>
+                      <button
+                        onClick={() => deleteDistrict(d._id)}
+                        className="p-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition transform hover:scale-110"
+                        title="Delete"
+                      ></button>
                     </div>
                   </li>
                 ))}
@@ -1161,25 +1320,7 @@ export default function OwnerDashboard() {
                 />
               </div>
 
-              {categoryModalMode === "edit" && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Slug (url-friendly)
-                  </label>
-                  <input
-                    value={editingCategory.slug || ""}
-                    onChange={(e) =>
-                      setEditingCategory({
-                        ...editingCategory,
-                        slug: e.target.value,
-                      })
-                    }
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition bg-white text-gray-900 placeholder-gray-500 font-mono"
-                    placeholder="slug-for-category"
-                    required
-                  />
-                </div>
-              )}
+              {/* No slug field for categories anymore */}
 
               <div className="flex justify-end gap-2">
                 <button
@@ -1197,6 +1338,97 @@ export default function OwnerDashboard() {
                   className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-teal-600"
                 >
                   {categoryModalMode === "create" ? "Create" : "Save"}
+                </button>
+              </div>
+            </form>
+          </Modal>
+        )}
+
+        {/* District Modal */}
+        {districtModalOpen && editingDistrict && (
+          <Modal
+            title={
+              districtModalMode === "create"
+                ? "Create District"
+                : "Edit District"
+            }
+            onClose={() => {
+              setDistrictModalOpen(false);
+              setEditingDistrict(null);
+            }}
+          >
+            <form onSubmit={submitDistrictModal} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Name
+                </label>
+                <input
+                  value={editingDistrict.name}
+                  onChange={(e) =>
+                    setEditingDistrict({
+                      ...editingDistrict,
+                      name: e.target.value,
+                    })
+                  }
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition bg-white text-gray-900 placeholder-gray-500"
+                  placeholder="Name (e.g., इंदौर)"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  State (optional)
+                </label>
+                <input
+                  value={editingDistrict.state || ""}
+                  onChange={(e) =>
+                    setEditingDistrict({
+                      ...editingDistrict,
+                      state: e.target.value,
+                    })
+                  }
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition bg-white text-gray-900 placeholder-gray-500"
+                  placeholder="State (e.g., मध्य प्रदेश)"
+                />
+              </div>
+
+              {districtModalMode === "edit" && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Slug (url-friendly)
+                  </label>
+                  <input
+                    value={editingDistrict.slug || ""}
+                    onChange={(e) =>
+                      setEditingDistrict({
+                        ...editingDistrict,
+                        slug: e.target.value,
+                      })
+                    }
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition bg-white text-gray-900 placeholder-gray-500 font-mono"
+                    placeholder="slug-for-district"
+                    required
+                  />
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDistrictModalOpen(false);
+                    setEditingDistrict(null);
+                  }}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-teal-600"
+                >
+                  {districtModalMode === "create" ? "Create" : "Save"}
                 </button>
               </div>
             </form>

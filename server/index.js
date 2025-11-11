@@ -18,6 +18,7 @@ import newsRoutes from "./routes/news.js";
 import reporterRoutes from "./routes/reporters.js";
 import uploadRoutes from "./routes/upload.js";
 import categoriesRoutes from "./routes/categories.js";
+import districtsRoutes from "./routes/districts.js";
 
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI;
@@ -31,6 +32,7 @@ app.use("/api/news", newsRoutes);
 app.use("/api/reporters", reporterRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/categories", categoriesRoutes);
+app.use("/api/districts", districtsRoutes);
 
 app.get("/", (req, res) => res.json({ ok: true }));
 

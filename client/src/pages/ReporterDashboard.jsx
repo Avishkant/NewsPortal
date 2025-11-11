@@ -68,6 +68,8 @@ export default function ReporterDashboard() {
   const { showToast } = useToast();
   const [news, setNews] = useState([]);
   const [editing, setEditing] = useState(null);
+  const [categories, setCategories] = useState([]);
+  const [districts, setDistricts] = useState([]);
   const navigate = useNavigate();
 
   const load = async () => {
@@ -94,7 +96,31 @@ export default function ReporterDashboard() {
 
   useEffect(() => {
     if (!user) return;
-    load();
+    (async () => {
+      await Promise.all([
+        load(),
+        (async () => {
+          try {
+            const cats = await authFetch("/api/categories");
+            setCategories(Array.isArray(cats) ? cats : []);
+          } catch (err) {
+            console.warn(
+              "ReporterDashboard: failed to load categories",
+              err?.message || err
+            );
+          }
+          try {
+            const d = await authFetch("/api/districts");
+            setDistricts(Array.isArray(d) ? d : []);
+          } catch (err) {
+            console.warn(
+              "ReporterDashboard: failed to load districts",
+              err?.message || err
+            );
+          }
+        })(),
+      ]);
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
@@ -249,6 +275,8 @@ export default function ReporterDashboard() {
                     initial={editing}
                     onSaved={onSaved}
                     onCancel={() => setEditing(null)}
+                    categories={categories}
+                    districts={districts}
                   />
                 </Suspense>
               </ErrorBoundary>

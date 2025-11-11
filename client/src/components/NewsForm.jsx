@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../contexts/AuthContext.jsx";
-import API_BASE from "../api.js";
+import API_BASE, { apiFetch } from "../api.js";
 import { useToast } from "../contexts/ToastContext.jsx";
 import { useQuill } from "react-quilljs";
 import "quill/dist/quill.snow.css"; // Base Quill styles
@@ -11,11 +11,15 @@ export default function NewsForm({
   onSaved,
   onCancel,
   categories = [],
+  districts: districtsProp = null,
 }) {
   const [title, setTitle] = useState(initial.title || "");
   const [slug, setSlug] = useState(initial.slug || "");
   const [category, setCategory] = useState(initial.category || "");
   const [district, setDistrict] = useState(initial.district || "");
+  const [districtsList, setDistrictsList] = useState(
+    Array.isArray(districtsProp) ? districtsProp : []
+  );
   const [content, setContent] = useState(initial.content || "");
   const [image, setImage] = useState(initial.image || "");
   const [imagePublicId, setImagePublicId] = useState(
@@ -84,6 +88,24 @@ export default function NewsForm({
     setImagePublicId(initial.imagePublicId || "");
     setHeadline(!!initial.headline);
   }, [initial]);
+
+  // fetch districts if not provided by prop
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      if (Array.isArray(districtsProp) && districtsProp.length > 0) return;
+      try {
+        const list = await apiFetch("/api/districts");
+        if (!mounted) return;
+        if (Array.isArray(list) && list.length > 0) {
+          setDistrictsList(list);
+        }
+      } catch (err) {
+        console.warn("NewsForm: failed to load districts", err?.message || err);
+      }
+    })();
+    return () => (mounted = false);
+  }, [districtsProp]);
 
   // Sync quill content
   useEffect(() => {
@@ -304,10 +326,7 @@ export default function NewsForm({
             >
               <option value="">No category (optional)</option>
               {categories.map((c) => (
-                <option
-                  key={c._id || c.slug || c.name}
-                  value={c.slug || c.name}
-                >
+                <option key={c._id || c.name} value={c.name}>
                   {c.name}
                 </option>
               ))}
@@ -333,62 +352,68 @@ export default function NewsForm({
             className="w-full p-3 border border-gray-300 rounded-lg shadow-sm bg-white text-gray-900 focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition duration-200 cursor-pointer"
           >
             <option value="">All districts / Not specified</option>
-            {[
-              "Agar Malwa",
-              "Alirajpur",
-              "Anuppur",
-              "Ashoknagar",
-              "Balaghat",
-              "Barwani",
-              "Betul",
-              "Bhind",
-              "Bhopal",
-              "Burhanpur",
-              "Chhatarpur",
-              "Chhindwara",
-              "Damoh",
-              "Datia",
-              "Dewas",
-              "Dhar",
-              "Dindori",
-              "Guna",
-              "Gwalior",
-              "Harda",
-              "Indore",
-              "Narmadapuram (Hoshangabad)",
-              "Jabalpur",
-              "Jhabua",
-              "Katni",
-              "Khandwa",
-              "Khargone",
-              "Mandla",
-              "Mandsaur",
-              "Morena",
-              "Narsinghpur",
-              "Neemuch",
-              "Niwari",
-              "Panna",
-              "Raisen",
-              "Rajgarh",
-              "Ratlam",
-              "Rewa",
-              "Sagar",
-              "Satna",
-              "Sehore",
-              "Seoni",
-              "Shahdol",
-              "Shajapur",
-              "Sheopur",
-              "Shivpuri",
-              "Sidhi",
-              "Singrauli",
-              "Tikamgarh",
-              "Ujjain",
-              "Umaria",
-              "Vidisha",
-            ].map((d) => (
-              <option key={d} value={d}>
-                {d}
+            {(districtsList && districtsList.length > 0
+              ? districtsList.map((d) => ({
+                  key: d.slug || d._id || d.name,
+                  label: d.name,
+                }))
+              : [
+                  "Agar Malwa",
+                  "Alirajpur",
+                  "Anuppur",
+                  "Ashoknagar",
+                  "Balaghat",
+                  "Barwani",
+                  "Betul",
+                  "Bhind",
+                  "Bhopal",
+                  "Burhanpur",
+                  "Chhatarpur",
+                  "Chhindwara",
+                  "Damoh",
+                  "Datia",
+                  "Dewas",
+                  "Dhar",
+                  "Dindori",
+                  "Guna",
+                  "Gwalior",
+                  "Harda",
+                  "Indore",
+                  "Narmadapuram (Hoshangabad)",
+                  "Jabalpur",
+                  "Jhabua",
+                  "Katni",
+                  "Khandwa",
+                  "Khargone",
+                  "Mandla",
+                  "Mandsaur",
+                  "Morena",
+                  "Narsinghpur",
+                  "Neemuch",
+                  "Niwari",
+                  "Panna",
+                  "Raisen",
+                  "Rajgarh",
+                  "Ratlam",
+                  "Rewa",
+                  "Sagar",
+                  "Satna",
+                  "Sehore",
+                  "Seoni",
+                  "Shahdol",
+                  "Shajapur",
+                  "Sheopur",
+                  "Shivpuri",
+                  "Sidhi",
+                  "Singrauli",
+                  "Tikamgarh",
+                  "Ujjain",
+                  "Umaria",
+                  "Vidisha",
+                ].map((d) => ({ key: d, label: d }))
+            ).map((d) => (
+              <option key={d.key} value={d.label}>
+                {d.label}
               </option>
             ))}
           </select>

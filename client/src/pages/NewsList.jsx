@@ -4,22 +4,7 @@ import { useAuth } from "../contexts/AuthContext.jsx";
 import { apiFetch } from "../api.js";
 import NewsCard from "../components/NewsCard.jsx"; // Assuming NewsCard is styled
 import { motion } from "framer-motion";
-import {
-  FaNewspaper,
-  FaFilter,
-  FaAngleDown,
-  FaTachometerAlt,
-} from "react-icons/fa";
-
-// --- Custom Styled Components (Light Theme) ---
-const StyledSelect = ({ className = "", children, ...props }) => (
-  <select
-    className={`p-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-800 transition duration-200 ${className} appearance-none cursor-pointer`}
-    {...props}
-  >
-    {children}
-  </select>
-);
+import { FaNewspaper, FaTachometerAlt } from "react-icons/fa";
 
 // Motion variants for the staggered grid
 const containerVariants = {
@@ -76,10 +61,6 @@ export default function NewsList() {
       .finally(() => setLoading(false));
   }, [category, district, location.search]);
 
-  const categories = Array.from(new Set(items.map((i) => i.category))).filter(
-    Boolean
-  );
-
   const dashboardLink = user?.role === "owner" ? "/owner" : "/reporter";
 
   return (
@@ -105,24 +86,7 @@ export default function NewsList() {
             </Link>
           )}
 
-          {/* Category Filter */}
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
-              <FaFilter className="w-3 h-3 text-gray-500" /> Filter
-            </label>
-            <StyledSelect
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-32 md:w-40 lg:w-48"
-            >
-              <option value="">All Categories</option>
-              {categories.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </StyledSelect>
-          </div>
+          {/* Category filter removed */}
         </div>
       </motion.div>
 

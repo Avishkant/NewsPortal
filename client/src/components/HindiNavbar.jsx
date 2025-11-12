@@ -32,7 +32,8 @@ export default function HindiNavbar() {
     { key: "sports", label: "खेल" },
     { key: "entertainment", label: "मनोरंजन" },
     { key: "business", label: "व्यापार" },
-    { key: "politics", label: "राजनीति" },
+    // Removed 'politics' from the hard-coded fallback list so the owner-managed
+    // categories (from the server) remain the single source of truth.
     { key: "health", label: "स्वास्थ्य" },
     { key: "education", label: "शिक्षा" },
   ]);
@@ -59,7 +60,7 @@ export default function HindiNavbar() {
   const [navHeight, setNavHeight] = useState(0);
   const [isFixed, setIsFixed] = useState(false);
   const firstMenuLinkRef = useRef(null);
-  const { user } = useAuth() || {};
+  const { user, logout } = useAuth() || {};
   const navigate = useNavigate();
   const [desktopSearch, setDesktopSearch] = useState("");
   const [mobileSearch, setMobileSearch] = useState("");
@@ -442,6 +443,24 @@ export default function HindiNavbar() {
                 >
                   <User className="h-4 w-4 mr-2" /> लॉग इन करें
                 </Link>
+              )}
+              {user && (
+                <button
+                  onClick={() => {
+                    try {
+                      if (logout) logout();
+                    } catch (e) {
+                      console.warn("Logout failed", e);
+                    }
+                    closeMobilePanels();
+                    navigate("/");
+                  }}
+                  className="mt-2 text-base font-medium py-2 rounded-md transition duration-150 flex items-center text-red-600"
+                  role="menuitem"
+                >
+                  {/* Simple text for logout on mobile */}
+                  लॉग आउट
+                </button>
               )}
             </div>
           </motion.div>

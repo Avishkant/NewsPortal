@@ -48,7 +48,9 @@ router.delete(
   asyncHandler(async (req, res) => {
     const u = await User.findById(req.params.id);
     if (!u) return res.status(404).json({ message: "Not found" });
-    await u.remove();
+    // Use model-level deletion to ensure removal works even if `u` is not
+    // a full Mongoose document (lean, cast, or other transformations).
+    await User.findByIdAndDelete(u._id);
     res.json({ message: "Removed" });
   })
 );

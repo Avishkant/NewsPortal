@@ -365,6 +365,15 @@ export default function HindiNavbar() {
             aria-hidden={!mobileMenuOpen}
           >
             <div className="flex flex-col px-4 py-2">
+              {/* Mobile Home link at the top */}
+              <Link
+                to="/news"
+                className="w-full text-left text-white bg-[var(--primary)] px-4 py-2 rounded-md font-semibold mb-2"
+                onClick={closeMobilePanels}
+                role="menuitem"
+              >
+                होम
+              </Link>
               {categories.map((c, index) => {
                 if (c.hasDropdown) {
                   return (
@@ -448,6 +457,18 @@ export default function HindiNavbar() {
       >
         <div className="max-w-screen-xl mx-auto px-4 hidden lg:block">
           <div className="flex items-center overflow-x-auto whitespace-nowrap py-2">
+            {/* Desktop Home button placed first to show all news */}
+            <Link
+              to="/news"
+              className="text-white text-sm font-semibold px-4 py-1 rounded-full transition duration-150 ease-in-out mx-1 tracking-wider"
+              style={{
+                backgroundColor: SECONDARY_TEAL,
+              }}
+              onClick={closeMobilePanels}
+              aria-label="होम - सभी समाचार"
+            >
+              होम
+            </Link>
             {categories.map((c) => {
               if (c.hasDropdown) {
                 return (

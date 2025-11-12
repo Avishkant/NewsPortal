@@ -10,6 +10,9 @@ export default function HeadlineMarquee({
   const [paused, setPaused] = useState(false);
   const mounted = useRef(true);
   const prefersReduced = useRef(false);
+  const lastGood = useRef([]); // keep last successful fetch so marquee can keep running on transient failures
+  const retryTimer = useRef(null);
+  const refreshInterval = useRef(null);
 
   useEffect(() => {
     // detect reduced motion
@@ -24,17 +27,95 @@ export default function HeadlineMarquee({
 
   useEffect(() => {
     mounted.current = true;
-    apiFetch("/api/news/headlines")
-      .then((data) => {
+    const controller = new AbortController();
+
+    let attempt = 0;
+
+    const fetchHeadlines = async () => {
+      attempt += 1;
+      try {
+        const data = await apiFetch("/api/news/headlines", {
+          signal: controller.signal,
+        });
         if (!mounted.current) return;
-        setItems(Array.isArray(data) ? data : []);
-      })
-      .catch(() => {
+        const arr = Array.isArray(data) ? data : [];
+
+        // Merge fetched headlines with lastGood queue and keep a FIFO of max 5 items.
+        // Strategy:
+        //  - Combine existing queue and newly fetched items.
+        //  - Deduplicate by _id keeping the latest occurrence (fetched items override).
+        //  - Sort by timestamp (createdAt or ObjectId timestamp) ascending (oldest first).
+        //  - Keep the most recent `maxItems` (tail of array) but maintain FIFO ordering.
+
+        const maxItems = 5;
+
+        const combined = [...lastGood.current, ...arr];
+
+        const byId = new Map();
+        for (const it of combined) {
+          if (!it || !it._id) continue;
+          // later occurrences should overwrite earlier ones
+          byId.set(it._id, it);
+        }
+
+        const unique = Array.from(byId.values());
+
+        const getTs = (it) => {
+          if (!it) return 0;
+          if (it.createdAt) return new Date(it.createdAt).getTime();
+          try {
+            // ObjectId's first 8 hex chars are the timestamp in seconds
+            if (it._id && it._id.length >= 8) {
+              return parseInt(it._id.substring(0, 8), 16) * 1000;
+            }
+          } catch {
+            /* ignore */
+          }
+          return 0;
+        };
+
+        unique.sort((a, b) => getTs(a) - getTs(b)); // oldest -> newest
+
+        const trimmed = unique.slice(-maxItems);
+
+        if (trimmed.length > 0) {
+          lastGood.current = trimmed;
+          setItems(trimmed);
+        } else if (lastGood.current.length > 0) {
+          setItems(lastGood.current);
+        } else {
+          setItems(trimmed);
+        }
+
+        // reset attempt on success
+        attempt = 0;
+      } catch {
         if (!mounted.current) return;
-        setItems([]);
-      });
+        // network issues or CORS failures: keep last good headlines and schedule a retry
+        if (lastGood.current.length > 0) {
+          setItems(lastGood.current);
+        }
+        // schedule retry with simple backoff: 5s, 15s, 60s
+        const delays = [5000, 15000, 60000];
+        const delay = delays[Math.min(attempt - 1, delays.length - 1)];
+        clearTimeout(retryTimer.current);
+        retryTimer.current = setTimeout(() => fetchHeadlines(), delay);
+      }
+    };
+
+    // initial fetch
+    fetchHeadlines();
+
+    // periodic refresh (every 30s) to keep headlines fresh
+    refreshInterval.current = setInterval(() => {
+      fetchHeadlines();
+    }, 30000);
+
     return () => {
       mounted.current = false;
+      controller.abort();
+      clearTimeout(retryTimer.current);
+      clearInterval(refreshInterval.current);
     };
   }, []);
 

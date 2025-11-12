@@ -133,6 +133,18 @@ export default function OwnerDashboard() {
     }
   };
 
+  // Helper to strip HTML tags and entities for safe excerpts
+  const stripHtml = (s = "") => {
+    let t = String(s || "");
+    // remove tags
+    t = t.replace(/<[^>]*>/g, "");
+    // remove common HTML entities (e.g. &nbsp;) and any &...; patterns
+    t = t.replace(/&[^;]+;/g, " ");
+    // collapse whitespace
+    t = t.replace(/\s+/g, " ").trim();
+    return t;
+  };
+
   // --- Reporter Management (Unchanged logic, minor style changes) ---
   const createReporter = async (e) => {
     e.preventDefault();
@@ -1304,7 +1316,9 @@ export default function OwnerDashboard() {
                     </div>
                     {/* 🌟 OVERFLOW FIX: line-clamp-3 for content snippet */}
                     <div className="mt-3 text-sm text-gray-600 line-clamp-3">
-                      {n.content ? n.content.slice(0, 100) + "..." : ""}
+                      {n.content
+                        ? stripHtml(n.content).slice(0, 100) + "..."
+                        : ""}
                     </div>
                   </div>
 

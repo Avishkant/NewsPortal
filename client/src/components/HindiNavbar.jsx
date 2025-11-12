@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import logo from "../assets/logo.jpg";
 import { Search, Menu, X, User, ChevronDown } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
@@ -64,11 +64,22 @@ export default function HindiNavbar() {
   const [desktopSearch, setDesktopSearch] = useState("");
   const [mobileSearch, setMobileSearch] = useState("");
 
+  const location = useLocation();
+
   const submitSearch = (term) => {
     const q = String(term || "").trim();
     if (!q) return;
-    // Navigate to news list with q param
-    navigate(`/news?q=${encodeURIComponent(q)}`);
+    // Preserve existing category/district query params when searching
+    try {
+      const params = new URLSearchParams(location.search);
+      if (q) params.set("q", q);
+      // keep category and district if present
+      const qs = params.toString();
+      navigate(`/news${qs ? `?${qs}` : ""}`);
+    } catch {
+      // fallback
+      navigate(`/news?q=${encodeURIComponent(q)}`);
+    }
     // close mobile search panel if open
     setMobileSearchOpen(false);
     setMobileMenuOpen(false);
@@ -402,6 +413,15 @@ export default function HindiNavbar() {
                   </Link>
                 );
               })}
+              {/* Static About link */}
+              <Link
+                to="/about"
+                className="text-gray-800 text-base font-medium py-2 border-b border-gray-100 hover:text-red-700 hover:bg-gray-50 transition duration-150"
+                onClick={closeMobilePanels}
+                role="menuitem"
+              >
+                हमारे बारे में
+              </Link>
               {/* Mobile Auth Links */}
               {!user && (
                 <Link
@@ -552,6 +572,14 @@ export default function HindiNavbar() {
                 </Link>
               );
             })}
+            {/* Add About link at the end of the desktop category nav */}
+            <Link
+              to="/about"
+              className="text-gray-800 text-sm font-semibold px-4 py-1 rounded-full transition duration-150 ease-in-out mx-1 tracking-wider"
+              onClick={closeMobilePanels}
+            >
+              हमारे बारे में
+            </Link>
           </div>
         </div>
       </nav>

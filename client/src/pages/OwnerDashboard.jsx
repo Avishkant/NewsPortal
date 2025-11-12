@@ -1,6 +1,7 @@
 import { useEffect, useState, lazy, Suspense } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import ErrorBoundary from "../components/ErrorBoundary.jsx";
+import { apiFetch } from "../api.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
 const LazyNewsForm = lazy(() => import("../components/NewsForm.jsx"));
 import { useToast } from "../contexts/ToastContext.jsx";
@@ -34,6 +35,7 @@ export default function OwnerDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
   const [categories, setCategories] = useState([]);
   const [districts, setDistricts] = useState([]);
+  const [siteInfo, setSiteInfo] = useState(null);
   const [loadError, setLoadError] = useState(null);
   const [editingCategory, setEditingCategory] = useState(null);
   const [editingDistrict, setEditingDistrict] = useState(null);
@@ -90,6 +92,16 @@ export default function OwnerDashboard() {
     }
   };
 
+  const loadSiteInfo = async () => {
+    try {
+      const info = await apiFetch("/api/site");
+      setSiteInfo(info || {});
+    } catch (err) {
+      console.error("Failed to load site info", err);
+      setSiteInfo({});
+    }
+  };
+
   useEffect(() => {
     (async () => {
       setLoadError(null);
@@ -99,6 +111,7 @@ export default function OwnerDashboard() {
           loadNews(),
           loadCategories(),
           loadDistricts(),
+          loadSiteInfo(),
         ]);
       } catch (err) {
         console.error("OwnerDashboard initialization failed", err);
@@ -614,6 +627,13 @@ export default function OwnerDashboard() {
             icon: <MapPin className="h-5 w-5" />,
           },
           {
+            key: "about",
+            label: "About Page",
+            onClick: () => setActiveTab("about"),
+            active: activeTab === "about",
+            icon: <FileText className="h-5 w-5" />,
+          },
+          {
             key: "create",
             label: "Create News",
             onClick: () => {
@@ -886,6 +906,184 @@ export default function OwnerDashboard() {
         )}
 
         {/* Reporters Tab */}
+        {/* About Page Editor (owner only) */}
+        {activeTab === "about" && (
+          <section className="mb-6">
+            <h3 className="text-2xl font-semibold mb-4 text-gray-900">
+              Edit About Page
+            </h3>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="p-6 bg-white rounded-xl shadow-lg">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Editor Name
+                </label>
+                <input
+                  value={siteInfo?.editorName || ""}
+                  onChange={(e) =>
+                    setSiteInfo({
+                      ...(siteInfo || {}),
+                      editorName: e.target.value,
+                    })
+                  }
+                  placeholder="Editor name"
+                  className="w-full p-3 border border-gray-300 rounded-lg mb-3"
+                />
+
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Editor Title
+                </label>
+                <input
+                  value={siteInfo?.editorTitle || ""}
+                  onChange={(e) =>
+                    setSiteInfo({
+                      ...(siteInfo || {}),
+                      editorTitle: e.target.value,
+                    })
+                  }
+                  placeholder="Editor title (e.g., Editor-in-Chief)"
+                  className="w-full p-3 border border-gray-300 rounded-lg mb-3"
+                />
+
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Editor Email
+                </label>
+                <input
+                  value={siteInfo?.editorEmail || ""}
+                  onChange={(e) =>
+                    setSiteInfo({
+                      ...(siteInfo || {}),
+                      editorEmail: e.target.value,
+                    })
+                  }
+                  placeholder="editor@example.com"
+                  className="w-full p-3 border border-gray-300 rounded-lg mb-3"
+                />
+
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Editor Image URL
+                </label>
+                <input
+                  value={siteInfo?.editorImage || ""}
+                  onChange={(e) =>
+                    setSiteInfo({
+                      ...(siteInfo || {}),
+                      editorImage: e.target.value,
+                    })
+                  }
+                  placeholder="https://...jpg"
+                  className="w-full p-3 border border-gray-300 rounded-lg mb-3"
+                />
+                {siteInfo?.editorImage && (
+                  <img
+                    src={siteInfo.editorImage}
+                    alt="editor"
+                    className="w-28 h-28 object-cover rounded-full mt-2"
+                  />
+                )}
+
+                <label className="block text-sm font-medium text-gray-700 mb-1 mt-4">
+                  Mission (short)
+                </label>
+                <textarea
+                  value={siteInfo?.mission || ""}
+                  onChange={(e) =>
+                    setSiteInfo({
+                      ...(siteInfo || {}),
+                      mission: e.target.value,
+                    })
+                  }
+                  className="w-full p-3 border border-gray-300 rounded-lg mb-3"
+                  rows={4}
+                />
+
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  About HTML (rich text)
+                </label>
+                <textarea
+                  value={siteInfo?.aboutHtml || ""}
+                  onChange={(e) =>
+                    setSiteInfo({
+                      ...(siteInfo || {}),
+                      aboutHtml: e.target.value,
+                    })
+                  }
+                  className="w-full p-3 border border-gray-300 rounded-lg mb-3"
+                  rows={6}
+                />
+
+                <div className="flex gap-3 mt-4">
+                  <button
+                    onClick={async () => {
+                      try {
+                        const res = await authFetch(`/api/site`, {
+                          method: "PUT",
+                          body: siteInfo || {},
+                        });
+                        if (res && res._id) {
+                          showToast({
+                            type: "success",
+                            message: "About page updated",
+                          });
+                          setSiteInfo(res);
+                        } else {
+                          showToast({ type: "success", message: "Saved" });
+                        }
+                      } catch (err) {
+                        console.error("Failed to save site info", err);
+                        showToast({
+                          type: "error",
+                          message: err?.message || "Failed to save",
+                        });
+                      }
+                    }}
+                    className="px-4 py-2 bg-[var(--primary)] text-white rounded-md"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => loadSiteInfo()}
+                    className="px-4 py-2 bg-gray-100 rounded-md"
+                  >
+                    Reload
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-6 bg-white rounded-xl shadow-lg">
+                <h4 className="text-lg font-semibold mb-3">Preview</h4>
+                <div className="flex items-start gap-4">
+                  <div>
+                    <img
+                      src={siteInfo?.editorImage || "/vite.svg"}
+                      alt="editor"
+                      className="w-24 h-24 object-cover rounded-full"
+                    />
+                  </div>
+                  <div>
+                    <h5 className="text-lg font-bold">
+                      {siteInfo?.editorName || "Editor Name"}
+                    </h5>
+                    <p className="text-sm text-gray-600">
+                      {siteInfo?.editorTitle || "Editor-in-Chief"}
+                    </p>
+                    <p className="text-sm text-gray-700 mt-3">
+                      {siteInfo?.mission}
+                    </p>
+                  </div>
+                </div>
+                <div
+                  className="mt-4 prose max-w-none"
+                  dangerouslySetInnerHTML={{
+                    __html:
+                      siteInfo?.aboutHtml || "<p>No about content yet.</p>",
+                  }}
+                />
+              </div>
+            </div>
+          </section>
+        )}
+
         {activeTab === "reporters" && (
           <section className="mb-6">
             <h3 className="text-2xl font-semibold mb-4 text-gray-900">

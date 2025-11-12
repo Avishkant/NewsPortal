@@ -25,23 +25,22 @@ export default function NewsCard({ item }) {
       // Framer Motion for powerful hover effects and entrance animation
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: visible ? 1 : 0, y: visible ? 0 : 20 }}
-      whileHover={{ scale: 1.03, boxShadow: '0 10px 20px rgba(0, 0, 0, 0.1)' }}
+      whileHover={{ scale: 1.03, boxShadow: "0 10px 20px rgba(0, 0, 0, 0.1)" }}
       transition={{ duration: 0.5, ease: "easeOut" }}
-      
       className="relative bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-lg"
     >
       <Link to={`/news/${item._id}`} className="block">
-        <div className="h-48 w-full bg-gray-100 overflow-hidden relative">
+        <div className="h-40 md:h-48 w-full bg-gray-100 overflow-hidden relative">
           <motion.img
             src={item.image || "/vite.svg"}
             alt={item.title}
             className="w-full h-full object-cover transition-transform duration-500 ease-in-out"
             // Image zoom on hover inside the card
-            whileHover={{ scale: 1.1 }} 
+            whileHover={{ scale: 1.1 }}
           />
           {/* Subtle gradient to anchor text if necessary */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-          
+
           {/* Optional Headline Badge */}
           {item.headline && (
             <span className="absolute top-3 left-3 bg-red-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg">
@@ -52,22 +51,23 @@ export default function NewsCard({ item }) {
       </Link>
 
       <div className="p-4">
-        
         {/* Title and Date */}
         <div className="flex items-start justify-between gap-3">
-          <h3 className="text-xl font-extrabold text-gray-900 line-clamp-2">
-            <Link to={`/news/${item._id}`} className="hover:text-blue-600 transition">
+          <h3 className="text-lg md:text-xl font-extrabold text-gray-900 line-clamp-2">
+            <Link
+              to={`/news/${item._id}`}
+              className="hover:text-blue-600 transition"
+            >
               {item.title}
             </Link>
           </h3>
         </div>
-        
+
         {/* Excerpt */}
         <p className="mt-2 text-sm text-gray-600 line-clamp-3">{excerpt}</p>
 
         {/* Metadata and Author */}
         <div className="mt-4 flex flex-wrap items-center justify-between border-t border-gray-100 pt-3">
-          
           <div className="flex items-center gap-2">
             {/* Category Pill */}
             {item.category && (
@@ -75,7 +75,7 @@ export default function NewsCard({ item }) {
                 {item.category}
               </span>
             )}
-            
+
             {/* Author */}
             <span className="text-xs text-gray-500">
               {item.author?.name || "Reporter"}
@@ -85,7 +85,8 @@ export default function NewsCard({ item }) {
           {/* Action and Date */}
           <div className="flex items-center gap-3">
             <span className="text-xs text-gray-500 flex items-center gap-1">
-              <Clock className="h-3 w-3" /> {new Date(item.createdAt).toLocaleDateString()}
+              <Clock className="h-3 w-3" />{" "}
+              {new Date(item.createdAt).toLocaleDateString()}
             </span>
             <Link
               to={`/news/${item._id}`}
@@ -94,7 +95,6 @@ export default function NewsCard({ item }) {
               Read
             </Link>
           </div>
-          
         </div>
       </div>
     </motion.article>

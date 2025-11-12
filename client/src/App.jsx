@@ -8,6 +8,7 @@ import OwnerDashboard from "./pages/OwnerDashboard.jsx";
 import ReporterDashboard from "./pages/ReporterDashboard.jsx";
 import NewsList from "./pages/NewsList.jsx";
 import NewsDetail from "./pages/NewsDetail.jsx";
+import About from "./pages/About.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import "./App.css";
 
@@ -43,6 +44,14 @@ function App() {
                   element={
                     <ErrorBoundary>
                       <Login />
+                    </ErrorBoundary>
+                  }
+                />
+                <Route
+                  path="/about"
+                  element={
+                    <ErrorBoundary>
+                      <About />
                     </ErrorBoundary>
                   }
                 />

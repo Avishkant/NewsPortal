@@ -65,7 +65,7 @@ export default function NewsDetail() {
       >
         {/* --- Header and Metadata --- */}
         <header className="mb-6 pb-4 border-b border-gray-200">
-          <h1 className="text-4xl font-extrabold mb-3 text-gray-800">
+          <h1 className="text-2xl md:text-3xl lg:text-4xl font-extrabold mb-3 text-gray-800">
             {item.title}
           </h1>
 
@@ -91,7 +91,7 @@ export default function NewsDetail() {
           {/* Featured Image */}
           {imageUrl && (
             <motion.div
-              className="mt-6 mb-4 w-full h-80 overflow-hidden rounded-lg shadow-md"
+              className="mt-6 mb-4 w-full h-48 md:h-64 lg:h-80 overflow-hidden rounded-lg shadow-md"
               initial={{ scale: 0.95 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.2 }}
@@ -106,7 +106,7 @@ export default function NewsDetail() {
         </header>
 
         {/* --- Article Content --- */}
-        <section className="article-content prose max-w-none mb-8">
+        <section className="article-content prose lg:prose-lg max-w-none mb-8">
           {/* SECURITY NOTE: Trusting item.content from RichTextEditor */}
           <div dangerouslySetInnerHTML={{ __html: item.content }} />
         </section>

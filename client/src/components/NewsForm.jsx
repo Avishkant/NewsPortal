@@ -471,7 +471,7 @@ export default function NewsForm({
               <img
                 src={image}
                 alt="Featured Preview"
-                className="w-full h-48 object-cover rounded-lg shadow-md"
+                className="w-full h-40 md:h-48 lg:h-56 object-cover rounded-lg shadow-md"
               />
               <button
                 type="button"
@@ -513,7 +513,11 @@ export default function NewsForm({
           Article Content
         </label>
         {/* Custom Quill Styles: Ensures white background for content area and full width */}
-        <div ref={quillRef} className="quill-editor-container" />
+        {/* Responsive heights: smaller on mobile, taller on desktop for comfortable editing */}
+        <div
+          ref={quillRef}
+          className="quill-editor-container min-h-[250px] md:min-h-[400px]"
+        />
         <input
           ref={hiddenFileRef}
           type="file"

@@ -90,7 +90,7 @@ export default function NewsList() {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <h1 className="text-3xl font-extrabold text-gray-800 flex items-center gap-3">
+        <h1 className="text-2xl sm:text-3xl md:text-3xl lg:text-4xl font-extrabold text-gray-800 flex items-center gap-3">
           <FaNewspaper className="text-gray-600" /> Latest News
         </h1>
 
@@ -113,7 +113,7 @@ export default function NewsList() {
             <StyledSelect
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-40"
+              className="w-32 md:w-40 lg:w-48"
             >
               <option value="">All Categories</option>
               {categories.map((c) => (
@@ -137,7 +137,7 @@ export default function NewsList() {
         </div>
       ) : (
         <motion.div
-          className="max-w-7xl mx-auto grid gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+          className="max-w-7xl mx-auto grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
           variants={containerVariants}
           initial="hidden"
           animate="visible"

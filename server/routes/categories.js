@@ -1,64 +1,40 @@
 import express from "express";
 import asyncHandler from "express-async-handler";
-import Category from "../models/Category.js";
-import { protect } from "../middleware/auth.js";
+import { protect, requireRole } from "../middleware/auth.js";
+import * as categoriesController from "../controllers/categoriesController.js";
+import {
+  createCategoryValidator,
+  updateCategoryValidator,
+} from "../validators/categoryValidators.js";
+import runValidation from "../middleware/validate.js";
 
 const router = express.Router();
 
-// list categories (public)
-router.get(
-  "/",
-  asyncHandler(async (req, res) => {
-    const items = await Category.find({}).sort({ name: 1 });
-    res.json(items);
-  })
-);
+router.get("/", asyncHandler(categoriesController.listCategories));
 
-// create category (owner only)
 router.post(
   "/",
   protect,
-  asyncHandler(async (req, res) => {
-    if (!req.user || req.user.role !== "owner")
-      return res.status(403).json({ message: "Forbidden" });
-    const { name, slug } = req.body;
-    if (!name) return res.status(400).json({ message: "Missing fields" });
-    // Create a category by name only. Name is unique in the schema.
-    const cat = await Category.create({ name });
-    res.status(201).json(cat);
-  })
+  requireRole("owner"),
+  createCategoryValidator,
+  runValidation,
+  asyncHandler(categoriesController.createCategory)
 );
 
-// update (owner only)
 router.put(
   "/:id",
   protect,
-  asyncHandler(async (req, res) => {
-    if (!req.user || req.user.role !== "owner")
-      return res.status(403).json({ message: "Forbidden" });
-    const cat = await Category.findById(req.params.id);
-    if (!cat) return res.status(404).json({ message: "Not found" });
-    const { name, slug } = req.body;
-    if (name !== undefined) cat.name = name;
-    await cat.save();
-    res.json(cat);
-  })
+  requireRole("owner"),
+  updateCategoryValidator,
+  runValidation,
+  asyncHandler(categoriesController.updateCategory)
 );
 
-// delete (owner only)
 router.delete(
   "/:id",
   protect,
-  asyncHandler(async (req, res) => {
-    if (!req.user || req.user.role !== "owner")
-      return res.status(403).json({ message: "Forbidden" });
-    // Use findByIdAndDelete to avoid issues where the returned object is a plain
-    // POJO (not a Mongoose document) and doesn't have instance methods like
-    // `remove`. This is also simpler and atomic.
-    const cat = await Category.findByIdAndDelete(req.params.id);
-    if (!cat) return res.status(404).json({ message: "Not found" });
-    res.json({ message: "Deleted" });
-  })
+  requireRole("owner"),
+  asyncHandler(categoriesController.deleteCategory)
 );
 
 export default router;

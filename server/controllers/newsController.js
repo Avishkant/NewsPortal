@@ -1,0 +1,391 @@
+import News from "../models/News.js";
+import { v2 as cloudinary } from "cloudinary";
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// Helper to strip tags/entities for content validation
+const stripHtml = (s = "") => {
+  let t = String(s || "");
+  t = t.replace(/<[^>]*>/g, "");
+  t = t.replace(/&[^;]+;/g, " ");
+  return t.replace(/\s+/g, " ").trim();
+};
+
+// List news with optional filters and search
+export async function listNews(req, res) {
+  const filter = {};
+  if (req.query.category) filter.category = req.query.category;
+  if (req.query.district) filter.district = req.query.district;
+
+  if (req.query.q) {
+    const q = String(req.query.q).trim();
+    if (q.length > 0) {
+      filter.$or = filter.$or || [];
+      const re = new RegExp(q.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&"), "i");
+      filter.$or.push({ title: re }, { content: re });
+    }
+  }
+
+  if (!req.user || req.user.role !== "owner") {
+    if (req.user && req.user.role === "reporter") {
+      filter.$or = [{ approved: true }, { author: req.user._id }];
+    } else {
+      filter.approved = true;
+    }
+  }
+
+  const items = await News.find(filter)
+    .populate("author", "name email")
+    .sort({ createdAt: -1 });
+  res.json(items);
+}
+
+// Return news authored by authenticated user
+export async function listMine(req, res) {
+  const items = await News.find({ author: req.user._id })
+    .populate("author", "name email")
+    .sort({ createdAt: -1 });
+  res.json(items);
+}
+
+// Headlines endpoint
+export async function headlines(req, res) {
+  const baseFilter = { headline: true };
+  if (!req.user || req.user.role !== "owner") {
+    if (req.user && req.user.role === "reporter") {
+      baseFilter.$or = [{ approved: true }, { author: req.user._id }];
+    } else {
+      baseFilter.approved = true;
+    }
+  }
+
+  let items = await News.find(baseFilter)
+    .populate("author", "name email")
+    .sort({ createdAt: -1 })
+    .limit(5);
+
+  if (!items || items.length === 0) {
+    const recentFilter = {};
+    if (!req.user || req.user.role !== "owner") {
+      if (req.user && req.user.role === "reporter") {
+        recentFilter.$or = [{ approved: true }, { author: req.user._id }];
+      } else {
+        recentFilter.approved = true;
+      }
+    }
+    items = await News.find(recentFilter)
+      .populate("author", "name email")
+      .sort({ createdAt: -1 })
+      .limit(5);
+  }
+  res.json(items);
+}
+
+// Create a news item (reporter or owner)
+export async function createNews(req, res) {
+  console.log("POST /api/news body:", req.body);
+  let {
+    title,
+    slug,
+    content,
+    category,
+    image,
+    imagePublicId,
+    district,
+    youtubeLink,
+  } = req.body || {};
+
+  const missing = [];
+  if (!title || !String(title).trim()) missing.push("title");
+  if (!slug || !String(slug).trim()) {
+    if (title) {
+      try {
+        slug = String(title)
+          .toLowerCase()
+          .replace(/[^\u0000-\u007F\p{L}\p{N}]+/gu, "-")
+          .replace(/(^-|-$)/g, "");
+      } catch (err) {
+        slug = String(title)
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/(^-|-$)/g, "");
+      }
+    }
+    if (!slug) slug = `news-${Date.now()}`;
+  }
+  if (!content || !stripHtml(content)) missing.push("content");
+  if (missing.length)
+    return res.status(400).json({ message: "Missing fields", missing });
+
+  const exists = await News.findOne({ slug });
+  if (exists) return res.status(400).json({ message: "Slug must be unique" });
+
+  const isReporter = req.user && req.user.role === "reporter";
+  const news = await News.create({
+    title,
+    slug,
+    content,
+    category,
+    district,
+    youtubeLink,
+    image,
+    cloudinaryPublicId: imagePublicId,
+    author: req.user._id,
+    headline: !!req.body.headline,
+    status: isReporter ? "pending" : "approved",
+    approved: isReporter ? false : true,
+  });
+  res.status(201).json(news);
+}
+
+// Get a news item by id and increment views
+export async function getNewsById(req, res) {
+  const news = await News.findByIdAndUpdate(
+    req.params.id,
+    { $inc: { views: 1 } },
+    { new: true }
+  ).populate("author", "name email");
+  if (!news) return res.status(404).json({ message: "Not found" });
+  if (!news.approved) {
+    const isOwner = req.user && req.user.role === "owner";
+    const isAuthor =
+      req.user &&
+      req.user._id &&
+      news.author &&
+      req.user._id.toString() === news.author._id.toString();
+    if (!isOwner && !isAuthor)
+      return res.status(404).json({ message: "Not found" });
+  }
+  res.json(news);
+}
+
+// Update a news item
+export async function updateNews(req, res) {
+  const news = await News.findById(req.params.id);
+  if (!news) return res.status(404).json({ message: "Not found" });
+  if (
+    news.author.toString() !== req.user._id.toString() &&
+    req.user.role !== "owner"
+  ) {
+    return res.status(403).json({ message: "Forbidden" });
+  }
+
+  const allowed = [
+    "title",
+    "slug",
+    "content",
+    "category",
+    "district",
+    "image",
+    "youtubeLink",
+    "imagePublicId",
+    "headline",
+    "status",
+    "approved",
+  ];
+
+  if (
+    req.body.imagePublicId &&
+    req.body.imagePublicId !== news.cloudinaryPublicId
+  ) {
+    if (news.cloudinaryPublicId) {
+      try {
+        await cloudinary.uploader.destroy(news.cloudinaryPublicId);
+      } catch (err) {
+        console.error(
+          "Failed to delete previous cloudinary image on update",
+          err
+        );
+      }
+    }
+    news.cloudinaryPublicId = req.body.imagePublicId;
+  }
+
+  if (req.user.role !== "owner" && news.approved) {
+    const draft = {
+      title: req.body.title !== undefined ? req.body.title : news.title,
+      slug: (news.slug || "news") + "-edit-" + Date.now().toString(36),
+      content: req.body.content !== undefined ? req.body.content : news.content,
+      category:
+        req.body.category !== undefined ? req.body.category : news.category,
+      district:
+        req.body.district !== undefined ? req.body.district : news.district,
+      youtubeLink:
+        req.body.youtubeLink !== undefined
+          ? req.body.youtubeLink
+          : news.youtubeLink,
+      image: req.body.image !== undefined ? req.body.image : news.image,
+      cloudinaryPublicId:
+        req.body.imagePublicId !== undefined
+          ? req.body.imagePublicId
+          : news.cloudinaryPublicId,
+      author: req.user._id,
+      headline: !!req.body.headline,
+      status: "pending",
+      approved: false,
+      replaces: news._id,
+    };
+
+    let exists = await News.findOne({ slug: draft.slug });
+    if (exists)
+      draft.slug = draft.slug + "-" + Math.random().toString(36).slice(2, 8);
+
+    const created = await News.create(draft);
+    console.log(
+      `Created draft ${created._id} by reporter ${req.user._id} to replace ${news._id}`
+    );
+    return res.status(201).json(created);
+  }
+
+  allowed.forEach((k) => {
+    if (k === "imagePublicId") return;
+    if ((k === "approved" || k === "status") && req.user.role !== "owner")
+      return;
+    if (req.body[k] !== undefined) news[k] = req.body[k];
+  });
+
+  await news.save();
+
+  if (req.user.role === "owner" && news.replaces && news.approved) {
+    try {
+      const original = await News.findById(news.replaces);
+      if (original) {
+        if (
+          news.cloudinaryPublicId &&
+          news.cloudinaryPublicId !== original.cloudinaryPublicId
+        ) {
+          if (original.cloudinaryPublicId) {
+            try {
+              await cloudinary.uploader.destroy(original.cloudinaryPublicId);
+            } catch (err) {
+              console.error(
+                "Failed to delete previous cloudinary image on replace",
+                err
+              );
+            }
+          }
+          original.cloudinaryPublicId = news.cloudinaryPublicId;
+        }
+
+        original.title = news.title;
+        original.content = news.content;
+        original.category = news.category;
+        original.district = news.district;
+        original.youtubeLink = news.youtubeLink;
+        original.image = news.image;
+        original.headline = news.headline;
+        original.status = "approved";
+        original.approved = true;
+
+        await original.save();
+        await News.findByIdAndDelete(news._id);
+        return res.json(original);
+      }
+    } catch (err) {
+      console.error("Failed to apply approved draft to original", err);
+    }
+  }
+
+  if (req.user.role !== "owner") {
+    news.status = "pending";
+    news.approved = false;
+    await news.save();
+  }
+
+  res.json(news);
+}
+
+// Delete a news item
+export async function deleteNews(req, res) {
+  const news = await News.findById(req.params.id);
+  if (!news) return res.status(404).json({ message: "Not found" });
+  if (
+    news.author.toString() !== req.user._id.toString() &&
+    req.user.role !== "owner"
+  ) {
+    return res.status(403).json({ message: "Forbidden" });
+  }
+  if (req.user.role === "reporter" && !news.approved) {
+    return res
+      .status(403)
+      .json({ message: "Pending articles cannot be deleted by reporter" });
+  }
+
+  if (news.cloudinaryPublicId) {
+    try {
+      await cloudinary.uploader.destroy(news.cloudinaryPublicId);
+    } catch (err) {
+      console.error("Failed to delete cloudinary image", err);
+    }
+  }
+
+  await News.findByIdAndDelete(news._id);
+  res.json({ message: "Deleted" });
+}
+
+// Request delete (reporter)
+export async function requestDelete(req, res) {
+  const news = await News.findById(req.params.id);
+  if (!news) return res.status(404).json({ message: "Not found" });
+  if (news.author.toString() !== req.user._id.toString())
+    return res.status(403).json({ message: "Forbidden" });
+  if (!news.approved)
+    return res
+      .status(400)
+      .json({
+        message: "Only approved articles can be requested for deletion",
+      });
+  news.deletionRequested = true;
+  news.deletionRequestedBy = req.user._id;
+  news.deletionRequestedAt = new Date();
+  await news.save();
+  res.json({ message: "Deletion requested; owner will review" });
+}
+
+// Owner: list deletion requests
+export async function listDeletionRequests(req, res) {
+  if (req.user.role !== "owner")
+    return res.status(403).json({ message: "Forbidden" });
+  const items = await News.find({ deletionRequested: true })
+    .populate("author", "name email")
+    .sort({ deletionRequestedAt: -1 });
+  res.json(items);
+}
+
+// Owner: handle deletion request
+export async function handleDeletion(req, res) {
+  if (req.user.role !== "owner")
+    return res.status(403).json({ message: "Forbidden" });
+  const news = await News.findById(req.params.id);
+  if (!news) return res.status(404).json({ message: "Not found" });
+  const approve = !!req.body.approve;
+  if (!news.deletionRequested)
+    return res
+      .status(400)
+      .json({ message: "No deletion request for this article" });
+
+  if (approve) {
+    if (news.cloudinaryPublicId) {
+      try {
+        await cloudinary.uploader.destroy(news.cloudinaryPublicId);
+      } catch (err) {
+        console.error(
+          "Failed to delete cloudinary image during owner-approved deletion",
+          err
+        );
+      }
+    }
+    await News.findByIdAndDelete(news._id);
+    return res.json({ message: "Deleted" });
+  }
+
+  news.deletionRequested = false;
+  news.deletionRequestedBy = undefined;
+  news.deletionRequestedAt = undefined;
+  await news.save();
+  res.json(news);
+}

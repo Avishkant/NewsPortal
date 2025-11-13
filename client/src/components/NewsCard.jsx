@@ -27,7 +27,7 @@ export default function NewsCard({ item }) {
       animate={{ opacity: visible ? 1 : 0, y: visible ? 0 : 20 }}
       whileHover={{ scale: 1.03, boxShadow: "0 10px 20px rgba(0, 0, 0, 0.1)" }}
       transition={{ duration: 0.5, ease: "easeOut" }}
-      className="relative bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-lg"
+      className="relative bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-lg h-full flex flex-col min-h-[420px]"
     >
       <Link to={`/news/${item._id}`} className="block">
         <div className="h-40 md:h-48 w-full bg-gray-100 overflow-hidden relative">
@@ -50,7 +50,7 @@ export default function NewsCard({ item }) {
         </div>
       </Link>
 
-      <div className="p-4">
+      <div className="p-4 flex-1 flex flex-col">
         {/* Title and Date */}
         <div className="flex items-start justify-between gap-3">
           <h3 className="text-lg md:text-xl font-extrabold text-gray-900 line-clamp-2">
@@ -64,9 +64,11 @@ export default function NewsCard({ item }) {
         </div>
 
         {/* Excerpt */}
-        <p className="mt-2 text-sm text-gray-600 line-clamp-3">{excerpt}</p>
+        <p className="mt-2 text-sm text-gray-600 line-clamp-3 flex-1">
+          {excerpt}
+        </p>
 
-        {/* Metadata and Author */}
+        {/* Metadata and Author (stick to bottom) */}
         <div className="mt-4 flex flex-wrap items-center justify-between border-t border-gray-100 pt-3">
           <div className="flex items-center gap-2">
             {/* Category Pill */}

@@ -11,6 +11,7 @@ import NewsDetail from "./pages/NewsDetail.jsx";
 import About from "./pages/About.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import "./App.css";
+import Footer from "./components/Footer.jsx";
 
 function App() {
   return (
@@ -82,6 +83,7 @@ function App() {
               </Routes>
             </main>
           </div>
+          <Footer />
         </ToastProvider>
       </AuthProvider>
     </BrowserRouter>

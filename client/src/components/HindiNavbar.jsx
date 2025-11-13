@@ -389,6 +389,17 @@ export default function HindiNavbar() {
                       </button>
                       {mobileDistrictsOpen && (
                         <div className="bg-white/50">
+                          <Link
+                            key="mp-all"
+                            to={`/news?district=${encodeURIComponent(
+                              "madhya-pradesh"
+                            )}`}
+                            className="block px-6 py-2 text-sm text-gray-700 hover:bg-gray-50 font-medium"
+                            onClick={closeMobilePanels}
+                          >
+                            मध्य प्रदेश — सभी जिले
+                          </Link>
+
                           {mpDistricts.map((d) => (
                             <Link
                               key={d.key}
@@ -505,6 +516,18 @@ export default function HindiNavbar() {
                       aria-expanded={districtsOpen}
                       aria-controls="district-menu"
                       className="flex items-center text-gray-800 text-sm font-semibold px-4 py-1 rounded-full transition duration-150 ease-in-out tracking-wider"
+                      onClick={() => {
+                        try {
+                          navigate(
+                            `/news?district=${encodeURIComponent(
+                              "madhya-pradesh"
+                            )}`
+                          );
+                        } catch (e) {
+                          console.warn("navigate failed", e);
+                        }
+                        setDistrictsOpen(false);
+                      }}
                       onKeyDown={(e) => {
                         // open with Enter/Space/ArrowDown and focus first item
                         if (
@@ -542,6 +565,19 @@ export default function HindiNavbar() {
                         aria-labelledby="district-button"
                         className="absolute mt-2 left-0 w-56 bg-white border rounded-md shadow-lg z-50"
                       >
+                        {/* Add top-level link to show all MP districts */}
+                        <Link
+                          role="menuitem"
+                          tabIndex={-1}
+                          to={`/news?district=${encodeURIComponent(
+                            "madhya-pradesh"
+                          )}`}
+                          className="block px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
+                          onClick={() => setDistrictsOpen(false)}
+                        >
+                          मध्य प्रदेश — सभी जिले
+                        </Link>
+
                         {mpDistricts.map((d, idx) => (
                           <Link
                             key={d.key}

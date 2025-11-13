@@ -13,6 +13,11 @@ export default function HeadlineMarquee({
   const lastGood = useRef([]); // keep last successful fetch so marquee can keep running on transient failures
   const retryTimer = useRef(null);
   const refreshInterval = useRef(null);
+  const trackRef = useRef(null);
+  const animRef = useRef(null);
+  const posRef = useRef({ value: 0, __last: null });
+  const measuredWidth = useRef(0);
+  const stepRef = useRef(null);
 
   useEffect(() => {
     // detect reduced motion
@@ -119,11 +124,93 @@ export default function HeadlineMarquee({
     };
   }, []);
 
-  // continuous marquee uses CSS animation; no index state needed
+  // JavaScript-driven animation using requestAnimationFrame for robustness
+  useEffect(() => {
+    // start animation loop
+    const step = () => {
+      if (!trackRef.current) {
+        animRef.current = requestAnimationFrame(step);
+        return;
+      }
+
+      const prefers = prefersReduced.current;
+      if (prefers || paused) {
+        // keep loop alive but don't advance
+        animRef.current = requestAnimationFrame(step);
+        return;
+      }
+
+      const el = trackRef.current;
+      // measure width (total width of repeated content)
+      const total = el.scrollWidth || measuredWidth.current || 0;
+      // half is one copy width because we duplicate items
+      const half = total / 2 || 0;
+      if (half === 0) {
+        animRef.current = requestAnimationFrame(step);
+        return;
+      }
+
+      // duration (seconds for a full loop) - keep previous semantics
+      const duration = Math.max(8, speed);
+      const pxPerSec = half / duration;
+
+      const now = performance.now();
+      if (!posRef.current.__last) posRef.current.__last = now;
+      const dt = (now - posRef.current.__last) / 1000;
+      posRef.current.__last = now;
+
+      let pos = posRef.current.value || 0;
+      pos -= pxPerSec * dt;
+      // wrap around keeping continuity; handle large negative offsets (e.g., after tab inactive)
+      while (pos <= -half) pos += half;
+      while (pos > 0) pos -= half;
+      posRef.current.value = pos;
+      // apply transform
+      el.style.transform = `translateX(${pos}px)`;
+
+      measuredWidth.current = total;
+      animRef.current = requestAnimationFrame(step);
+    };
+
+    // reset position when items change so animation restarts smoothly
+    posRef.current.value = 0;
+    posRef.current.__last = null;
+    stepRef.current = step;
+    animRef.current = requestAnimationFrame(stepRef.current);
+
+    return () => {
+      if (animRef.current) cancelAnimationFrame(animRef.current);
+      animRef.current = null;
+    };
+    // re-run when items or paused or speed changes
+  }, [items, paused, speed]);
+
+  // Pause rAF when page is hidden to save CPU, resume and reset timing on visibility change
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.hidden) {
+        if (animRef.current) {
+          cancelAnimationFrame(animRef.current);
+          animRef.current = null;
+        }
+      } else {
+        // reset time anchor so dt is small and smooth when resuming
+        if (posRef.current) posRef.current.__last = null;
+        // don't resume if user has paused marquee or prefers reduced motion
+        if ((prefersReduced.current || paused) && animRef.current) return;
+        if (!animRef.current && stepRef.current) {
+          animRef.current = requestAnimationFrame(stepRef.current);
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [paused]);
 
   if (!items || items.length === 0) return null;
 
-  const duration = Math.max(8, speed); // seconds for a full loop
+  const duration = Math.max(8, speed); // seconds for a full loop (kept for semantic parity)
 
   const wrapperClass = `${
     stickyBelowNav ? "sticky top-[36px] z-40" : ""
@@ -141,11 +228,7 @@ export default function HeadlineMarquee({
             aria-label="Latest headlines"
           >
             <style>{`
-            /* continuous marquee: duplicate content and slide left by 50% */
-            @keyframes marquee {
-              0% { transform: translateX(0%); }
-              100% { transform: translateX(-50%); }
-            }
+            /* bloom animation only; JS drives marquee transform now */
             @keyframes bloom {
               0% { transform: scale(1); opacity: 1; }
               70% { transform: scale(2.2); opacity: 0; }
@@ -202,13 +285,9 @@ export default function HeadlineMarquee({
             <div className="flex-1 overflow-hidden">
               <div
                 className="marquee-track"
+                ref={trackRef}
                 style={{
                   willChange: "transform",
-                  animationName: prefersReduced.current ? "none" : "marquee",
-                  animationDuration: `${duration}s`,
-                  animationTimingFunction: "linear",
-                  animationPlayState:
-                    paused || prefersReduced.current ? "paused" : "running",
                   gap: "3rem",
                   whiteSpace: "nowrap",
                 }}
@@ -219,7 +298,7 @@ export default function HeadlineMarquee({
                     key={`${it._id}-${idx}`}
                     to={`/news/${it._id}`}
                     title={it.title}
-                    className="inline-block text-slate-800 font-medium px-4 py-1 hover:shadow-md transition-transform transform hover:-translate-y-0.5 max-w-[60ch] truncate"
+                    className="inline-block text-slate-800 font-medium px-4 py-1 hover:shadow-md transition-transform transform hover:-translate-y-0.5 whitespace-nowrap"
                   >
                     {it.title}
                   </Link>

@@ -47,13 +47,14 @@ export default function NewsList() {
 
   useEffect(() => {
     setLoading(true);
-    let q = "";
-    if (category) q += `category=${encodeURIComponent(category)}`;
-    if (district)
-      q += `${q ? "&" : ""}district=${encodeURIComponent(district)}`;
-    // include search query if present in URL
+    // Read filters directly from the URL to avoid races between effects
     const params = new URLSearchParams(location.search);
-    const searchQ = params.get("q");
+    const cat = params.get("category") || "";
+    const dist = params.get("district") || "";
+    const searchQ = params.get("q") || "";
+    let q = "";
+    if (cat) q += `category=${encodeURIComponent(cat)}`;
+    if (dist) q += `${q ? "&" : ""}district=${encodeURIComponent(dist)}`;
     if (searchQ) q += `${q ? "&" : ""}q=${encodeURIComponent(searchQ)}`;
     const qs = q ? `?${q}` : "";
     apiFetch(`/api/news${qs}`)
@@ -107,7 +108,7 @@ export default function NewsList() {
           animate="visible"
         >
           {items.map((n) => (
-            <motion.div key={n._id} variants={itemVariants}>
+            <motion.div key={n._id} variants={itemVariants} className="h-full">
               <NewsCard item={n} />
             </motion.div>
           ))}

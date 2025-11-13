@@ -1,4 +1,6 @@
 import News from "../models/News.js";
+import District from "../models/District.js";
+import Category from "../models/Category.js";
 import { v2 as cloudinary } from "cloudinary";
 
 cloudinary.config({
@@ -18,8 +20,105 @@ const stripHtml = (s = "") => {
 // List news with optional filters and search
 export async function listNews(req, res) {
   const filter = {};
-  if (req.query.category) filter.category = req.query.category;
-  if (req.query.district) filter.district = req.query.district;
+  const normalizeForMatch = (s = "") =>
+    String(s)
+      .toLowerCase()
+    .replace(/[\s\-]+/g, "")
+    .replace(/[^\p{L}\p{N}]+/gu, "")
+      .trim();
+  if (req.query.category) {
+    // Robust category matching:
+    // 1. Try exact case-insensitive match against Category.name
+    // 2. Try normalized name match (strip punctuation/spacing) to handle slug-like keys
+    // 3. Fallback to case-insensitive exact-match regex on the News.category field
+    const cat = String(req.query.category || "").trim();
+    if (cat) {
+      const catKey = normalizeForMatch(cat);
+      // If category indicates the whole state (Madhya Pradesh in Hindi or English),
+      // expand to include all MP districts instead of treating it as a category.
+      if (catKey.includes("madhya") || catKey.includes("मध्य")) {
+        try {
+          const districts = await District.find({
+            $or: [
+              { state: /madhya/i },
+              { slug: /madhya-pradesh/i },
+              { name: /madhya|मध्य/i },
+            ],
+          }).lean();
+          const names = (districts || []).map((d) => d.name).filter(Boolean);
+          if (names.length) {
+            filter.district = { $in: names };
+            // skip category filtering when user requested the state view
+            // (we want all districts in MP)
+            // proceed to other filters
+          }
+        } catch (err) {
+          console.error("Failed to expand madhya-pradesh from category", err);
+        }
+        // continue without setting filter.category
+        // (we already set filter.district above when possible)
+      } else {
+      const esc = cat.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&");
+      try {
+        // attempt to find a Category with exact name (case-insensitive)
+        const exactCat = await Category.findOne({
+          name: { $regex: `^${esc}$`, $options: "i" },
+        }).lean();
+        if (exactCat && exactCat.name) {
+          filter.category = exactCat.name;
+        } else {
+          // normalized fallback: compare a simple ascii/deva-norm form
+          const cats = await Category.find().lean();
+          const normalize = (s = "") =>
+            String(s)
+              .toLowerCase()
+              .replace(/[^\p{L}\p{N}]+/gu, "")
+              .trim();
+          const pnorm = normalize(cat);
+          const found = (cats || []).find((c) => normalize(c.name) === pnorm);
+          if (found && found.name) {
+            filter.category = found.name;
+          } else {
+            // final fallback: case-insensitive exact-match against stored News.category
+                filter.category = { $regex: `^${esc}$`, $options: "i" };
+          }
+        }
+      } catch (err) {
+        console.error("Category lookup failed", err);
+        const esc2 = cat.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&");
+        filter.category = { $regex: `^${esc2}$`, $options: "i" };
+      }
+    }
+  }
+  // Support a special state-wide shortcut: `district=madhya-pradesh` or `state=madhya-pradesh`
+  // which expands to all districts in that state. Otherwise, apply district filter directly.
+  if (req.query.district || req.query.state) {
+    const districtParam = req.query.district || req.query.state;
+    const dKey = normalizeForMatch(String(districtParam || ""));
+    if (dKey.includes("madhya") || dKey.includes("मध्य")) {
+      try {
+        const districts = await District.find({
+          $or: [
+            { state: /madhya/i },
+            { slug: /madhya-pradesh/i },
+            { name: /madhya/i },
+          ],
+        }).lean();
+        const names = (districts || []).map((d) => d.name).filter(Boolean);
+        if (names.length) {
+          filter.district = { $in: names };
+        }
+      } catch (err) {
+        console.error("Failed to expand madhya-pradesh districts", err);
+      }
+    } else {
+      const dval = String(req.query.district || req.query.state || "").trim();
+      if (dval) {
+        const escD = dval.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&");
+        filter.district = { $regex: `^${escD}$`, $options: "i" };
+      }
+    }
+  }
 
   if (req.query.q) {
     const q = String(req.query.q).trim();
@@ -154,9 +253,10 @@ export async function getNewsById(req, res) {
     const isOwner = req.user && req.user.role === "owner";
     const isAuthor =
       req.user &&
-      req.user._id &&
       news.author &&
-      req.user._id.toString() === news.author._id.toString();
+      (news.author._id
+        ? news.author._id.toString() === String(req.user._id)
+        : news.author.toString() === String(req.user._id));
     if (!isOwner && !isAuthor)
       return res.status(404).json({ message: "Not found" });
   }
@@ -167,12 +267,15 @@ export async function getNewsById(req, res) {
 export async function updateNews(req, res) {
   const news = await News.findById(req.params.id);
   if (!news) return res.status(404).json({ message: "Not found" });
-  if (
-    news.author.toString() !== req.user._id.toString() &&
-    req.user.role !== "owner"
-  ) {
+  const isOwner = req.user && req.user.role === "owner";
+  const isAuthor =
+    req.user &&
+    news.author &&
+    (news.author._id
+      ? news.author._id.toString() === String(req.user._id)
+      : news.author.toString() === String(req.user._id));
+  if (!isOwner && !isAuthor)
     return res.status(403).json({ message: "Forbidden" });
-  }
 
   const allowed = [
     "title",
@@ -303,12 +406,15 @@ export async function updateNews(req, res) {
 export async function deleteNews(req, res) {
   const news = await News.findById(req.params.id);
   if (!news) return res.status(404).json({ message: "Not found" });
-  if (
-    news.author.toString() !== req.user._id.toString() &&
-    req.user.role !== "owner"
-  ) {
+  const isOwnerDel = req.user && req.user.role === "owner";
+  const isAuthorDel =
+    req.user &&
+    news.author &&
+    (news.author._id
+      ? news.author._id.toString() === String(req.user._id)
+      : news.author.toString() === String(req.user._id));
+  if (!isOwnerDel && !isAuthorDel)
     return res.status(403).json({ message: "Forbidden" });
-  }
   if (req.user.role === "reporter" && !news.approved) {
     return res
       .status(403)
@@ -331,14 +437,17 @@ export async function deleteNews(req, res) {
 export async function requestDelete(req, res) {
   const news = await News.findById(req.params.id);
   if (!news) return res.status(404).json({ message: "Not found" });
-  if (news.author.toString() !== req.user._id.toString())
-    return res.status(403).json({ message: "Forbidden" });
+  const isAuthorReq =
+    req.user &&
+    news.author &&
+    (news.author._id
+      ? news.author._id.toString() === String(req.user._id)
+      : news.author.toString() === String(req.user._id));
+  if (!isAuthorReq) return res.status(403).json({ message: "Forbidden" });
   if (!news.approved)
-    return res
-      .status(400)
-      .json({
-        message: "Only approved articles can be requested for deletion",
-      });
+    return res.status(400).json({
+      message: "Only approved articles can be requested for deletion",
+    });
   news.deletionRequested = true;
   news.deletionRequestedBy = req.user._id;
   news.deletionRequestedAt = new Date();

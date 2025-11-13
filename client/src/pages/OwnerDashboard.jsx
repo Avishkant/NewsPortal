@@ -677,976 +677,986 @@ export default function OwnerDashboard() {
       />
 
       {/* Main Content Area - Subtle light gray background */}
-      <main className="flex-1 p-4 lg:p-8 bg-gray-50">
-        {/* Mobile menu placeholder */}
+      <ErrorBoundary>
+        <main className="flex-1 p-4 lg:p-8 bg-gray-50">
+          {/* Mobile menu placeholder */}
 
-        <h1 className="hidden lg:block text-3xl font-bold mb-6 text-gray-900">
-          📰 Owner Dashboard
-        </h1>
+          <h1 className="hidden lg:block text-3xl font-bold mb-6 text-gray-900">
+            📰 Owner Dashboard
+          </h1>
 
-        <div className="flex justify-end mb-6 gap-2">
-          {/* <button
+          <div className="flex justify-end mb-6 gap-2">
+            {/* <button
             onClick={() => navigate(-1)}
             className="px-3 py-2 bg-white border rounded hover:bg-gray-100"
           >
             Return
           </button> */}
-          <Link
-            to="/news"
-            className="px-3 py-2 bg-white border rounded hover:bg-gray-100"
-          >
-            Home
-          </Link>
-          {/* Mobile-only create button: visible on small screens where sidebar is hidden */}
-          <button
-            onClick={() => {
-              setActiveTab("create");
-              setEditingNews({ category: "" });
-            }}
-            className="px-3 py-2 bg-[var(--primary)] text-white rounded hover:bg-teal-600 transition lg:hidden"
-            aria-label="Create News"
-          >
-            Create News
-          </button>
-        </div>
-
-        {/* Overview Tab & Summary Cards */}
-        {activeTab === "overview" && (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              {/* Card Template: Added scale on hover and transition for motion */}
-              <div
-                className="card p-5 bg-white shadow-lg border-t-4 border-[var(--primary)] transition duration-300 hover:shadow-xl hover:scale-[1.01] cursor-pointer"
-                onClick={() => setActiveTab("all")}
-              >
-                <div className="text-sm font-medium text-[var(--muted)]">
-                  Total News
-                </div>
-                <div className="text-4xl font-extrabold text-gray-900">
-                  {news?.length || 0}
-                </div>
-              </div>
-
-              <div
-                className="card p-5 bg-white shadow-lg border-t-4 border-blue-600 transition duration-300 hover:shadow-xl hover:scale-[1.01] cursor-pointer"
-                onClick={() => setActiveTab("reporters")}
-              >
-                <div className="text-sm font-medium text-[var(--muted)]">
-                  Reporters
-                </div>
-                <div className="text-4xl font-extrabold text-gray-900">
-                  {reporters?.length || 0}
-                </div>
-              </div>
-
-              <div
-                className="card p-5 bg-white shadow-lg border-t-4 border-[var(--accent)] transition duration-300 hover:shadow-xl hover:scale-[1.01] cursor-pointer"
-                onClick={() => setActiveTab("pending")}
-              >
-                <div className="text-sm font-medium text-[var(--muted)]">
-                  Pending Approvals
-                </div>
-                <div className="text-4xl font-extrabold text-[var(--accent)]">
-                  {totalPending}
-                </div>
-              </div>
-
-              <div
-                className="card p-5 bg-white shadow-lg border-t-4 border-purple-600 transition duration-300 hover:shadow-xl hover:scale-[1.01] cursor-pointer"
-                onClick={() => setActiveTab("categories")}
-              >
-                <div className="text-sm font-medium text-[var(--muted)]">
-                  Categories
-                </div>
-                <div className="text-4xl font-extrabold text-gray-900">
-                  {categories?.length || 0}
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* Error Section (Light Theme) */}
-        {loadError && (
-          <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-800 rounded-lg shadow-sm">
-            <div className="font-semibold mb-2">
-              ⚠️ Data Load Error: {loadError}
-            </div>
-            <button
-              onClick={reloadAll}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+            <Link
+              to="/news"
+              className="px-3 py-2 bg-white border rounded hover:bg-gray-100"
             >
-              Retry Loading Data
+              Home
+            </Link>
+            {/* Mobile-only create button: visible on small screens where sidebar is hidden */}
+            <button
+              onClick={() => {
+                setActiveTab("create");
+                setEditingNews({ category: "" });
+              }}
+              className="px-3 py-2 bg-[var(--primary)] text-white rounded hover:bg-teal-600 transition lg:hidden"
+              aria-label="Create News"
+            >
+              Create News
             </button>
           </div>
-        )}
 
-        {/* Quick Access to Pending Approvals (for Overview) */}
-        {activeTab === "overview" && totalPending > 0 && (
-          <section className="mb-8">
-            <h3 className="text-2xl font-semibold mb-4 text-[var(--accent)] flex items-center">
-              <Clock className="h-6 w-6 mr-2" /> Pending News for Review
-            </h3>
-            <div className="space-y-3">
-              {news
-                .filter((n) => n.status === "pending" || n.approved === false)
-                .slice(0, 5)
-                .map((n) => (
-                  <div
-                    key={n._id}
-                    className="p-4 bg-white rounded-lg shadow-md border-l-4 border-amber-500 flex justify-between items-center transition hover:shadow-lg hover:bg-amber-50"
-                  >
-                    <div>
-                      <div className="font-medium text-gray-900">{n.title}</div>
-                      <div className="text-sm text-[var(--muted)]">
-                        {n.category} — by {n.author?.name}
-                      </div>
-                    </div>
-                    <div className="space-x-2 flex items-center">
-                      <button
-                        onClick={() => approveNews(n._id)}
-                        className="p-2 bg-green-600 text-white rounded-full hover:bg-green-700 transition transform hover:scale-110"
-                        title="Approve"
-                      >
-                        <Check className="h-5 w-5" />
-                      </button>
-                      <button
-                        onClick={() => removeNews(n._id)}
-                        className="p-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition transform hover:scale-110"
-                        title="Delete"
-                      >
-                        <Trash className="h-5 w-5" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-            </div>
-            {totalPending > 5 && (
-              <button
-                onClick={() => setActiveTab("pending")}
-                className="mt-4 text-[var(--primary)] hover:text-teal-700 font-medium transition"
-              >
-                View all {totalPending} pending items &rarr;
-              </button>
-            )}
-          </section>
-        )}
-
-        {/* Quick Access: Deletion Requests for Owner Review */}
-        {activeTab === "overview" && totalDeletionRequests > 0 && (
-          <section className="mb-8">
-            <h3 className="text-2xl font-semibold mb-4 text-red-600 flex items-center">
-              <Trash className="h-6 w-6 mr-2" /> Deletion Requests
-            </h3>
-            <div className="space-y-3">
-              {news
-                .filter((n) => n.deletionRequested)
-                .slice(0, 5)
-                .map((n) => (
-                  <div
-                    key={n._id}
-                    className="p-4 bg-white rounded-lg shadow-md border-l-4 border-red-400 flex justify-between items-center transition hover:shadow-lg"
-                  >
-                    <div>
-                      <div className="font-medium text-gray-900">{n.title}</div>
-                      <div className="text-sm text-[var(--muted)]">
-                        by {n.author?.name} — requested{" "}
-                        {new Date(n.deletionRequestedAt).toLocaleString()}
-                      </div>
-                    </div>
-                    <div className="space-x-2 flex items-center">
-                      <button
-                        onClick={() => handleDeletionRequest(n._id, true)}
-                        className="p-2 bg-green-600 text-white rounded-full hover:bg-green-700 transition transform hover:scale-110"
-                        title="Approve Deletion"
-                      >
-                        <Check className="h-5 w-5" />
-                      </button>
-                      <button
-                        onClick={() => handleDeletionRequest(n._id, false)}
-                        className="p-2 bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 transition transform hover:scale-110"
-                        title="Reject Deletion"
-                      >
-                        <X className="h-5 w-5" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-            </div>
-            {totalDeletionRequests > 5 && (
-              <button
-                onClick={() => setActiveTab("all")}
-                className="mt-4 text-red-600 hover:text-red-800 font-medium transition"
-              >
-                View all {totalDeletionRequests} deletion requests &rarr;
-              </button>
-            )}
-          </section>
-        )}
-
-        {/* Create / Edit News Form (owner) */}
-        {activeTab === "create" && editingNews && (
-          <div className="mb-8 p-6 bg-white rounded-xl shadow-lg border-t-4 border-[var(--primary)] transition duration-300 animate-in fade-in slide-in-from-top-4">
-            <h3 className="text-2xl font-semibold mb-4 text-[var(--primary)]">
-              {editingNews._id ? "Edit News Article" : "Create New News"}
-            </h3>
-            <ErrorBoundary>
-              <Suspense
-                fallback={
-                  <div className="p-4 text-[var(--muted)]">
-                    Loading rich text editor…
-                  </div>
-                }
-              >
-                <LazyNewsForm
-                  initial={editingNews}
-                  onSaved={() => {
-                    setEditingNews(null);
-                    loadNews();
-                    showToast({
-                      type: "success",
-                      message: "News saved successfully!",
-                    });
-                  }}
-                  onCancel={() => setEditingNews(null)}
-                  categories={categories}
-                  districts={districts}
-                />
-              </Suspense>
-            </ErrorBoundary>
-          </div>
-        )}
-
-        {/* Reporters Tab */}
-        {/* About Page Editor (owner only) */}
-        {activeTab === "about" && (
-          <section className="mb-6">
-            <h3 className="text-2xl font-semibold mb-4 text-gray-900">
-              Edit About Page
-            </h3>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="p-6 bg-white rounded-xl shadow-lg">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Editor Name
-                </label>
-                <input
-                  value={siteInfo?.editorName || ""}
-                  onChange={(e) =>
-                    setSiteInfo({
-                      ...(siteInfo || {}),
-                      editorName: e.target.value,
-                    })
-                  }
-                  placeholder="Editor name"
-                  className="w-full p-3 border border-gray-300 rounded-lg mb-3"
-                />
-
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Editor Title
-                </label>
-                <input
-                  value={siteInfo?.editorTitle || ""}
-                  onChange={(e) =>
-                    setSiteInfo({
-                      ...(siteInfo || {}),
-                      editorTitle: e.target.value,
-                    })
-                  }
-                  placeholder="Editor title (e.g., Editor-in-Chief)"
-                  className="w-full p-3 border border-gray-300 rounded-lg mb-3"
-                />
-
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Editor Email
-                </label>
-                <input
-                  value={siteInfo?.editorEmail || ""}
-                  onChange={(e) =>
-                    setSiteInfo({
-                      ...(siteInfo || {}),
-                      editorEmail: e.target.value,
-                    })
-                  }
-                  placeholder="editor@example.com"
-                  className="w-full p-3 border border-gray-300 rounded-lg mb-3"
-                />
-
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Editor Image URL
-                </label>
-                <input
-                  value={siteInfo?.editorImage || ""}
-                  onChange={(e) =>
-                    setSiteInfo({
-                      ...(siteInfo || {}),
-                      editorImage: e.target.value,
-                    })
-                  }
-                  placeholder="https://...jpg"
-                  className="w-full p-3 border border-gray-300 rounded-lg mb-3"
-                />
-                {siteInfo?.editorImage && (
-                  <img
-                    src={siteInfo.editorImage}
-                    alt="editor"
-                    className="w-28 h-28 object-cover rounded-full mt-2"
-                  />
-                )}
-
-                <label className="block text-sm font-medium text-gray-700 mb-1 mt-4">
-                  Mission (short)
-                </label>
-                <textarea
-                  value={siteInfo?.mission || ""}
-                  onChange={(e) =>
-                    setSiteInfo({
-                      ...(siteInfo || {}),
-                      mission: e.target.value,
-                    })
-                  }
-                  className="w-full p-3 border border-gray-300 rounded-lg mb-3"
-                  rows={4}
-                />
-
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  About HTML (rich text)
-                </label>
-                <textarea
-                  value={siteInfo?.aboutHtml || ""}
-                  onChange={(e) =>
-                    setSiteInfo({
-                      ...(siteInfo || {}),
-                      aboutHtml: e.target.value,
-                    })
-                  }
-                  className="w-full p-3 border border-gray-300 rounded-lg mb-3"
-                  rows={6}
-                />
-
-                <div className="flex gap-3 mt-4">
-                  <button
-                    onClick={async () => {
-                      try {
-                        const res = await authFetch(`/api/site`, {
-                          method: "PUT",
-                          body: siteInfo || {},
-                        });
-                        if (res && res._id) {
-                          showToast({
-                            type: "success",
-                            message: "About page updated",
-                          });
-                          setSiteInfo(res);
-                        } else {
-                          showToast({ type: "success", message: "Saved" });
-                        }
-                      } catch (err) {
-                        console.error("Failed to save site info", err);
-                        showToast({
-                          type: "error",
-                          message: err?.message || "Failed to save",
-                        });
-                      }
-                    }}
-                    className="px-4 py-2 bg-[var(--primary)] text-white rounded-md"
-                  >
-                    Save
-                  </button>
-                  <button
-                    onClick={() => loadSiteInfo()}
-                    className="px-4 py-2 bg-gray-100 rounded-md"
-                  >
-                    Reload
-                  </button>
-                </div>
-              </div>
-
-              <div className="p-6 bg-white rounded-xl shadow-lg">
-                <h4 className="text-lg font-semibold mb-3">Preview</h4>
-                <div className="flex items-start gap-4">
-                  <div>
-                    <img
-                      src={siteInfo?.editorImage || "/vite.svg"}
-                      alt="editor"
-                      className="w-24 h-24 object-cover rounded-full"
-                    />
-                  </div>
-                  <div>
-                    <h5 className="text-lg font-bold">
-                      {siteInfo?.editorName || "Editor Name"}
-                    </h5>
-                    <p className="text-sm text-gray-600">
-                      {siteInfo?.editorTitle || "Editor-in-Chief"}
-                    </p>
-                    <p className="text-sm text-gray-700 mt-3">
-                      {siteInfo?.mission}
-                    </p>
-                  </div>
-                </div>
+          {/* Overview Tab & Summary Cards */}
+          {activeTab === "overview" && (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                {/* Card Template: Added scale on hover and transition for motion */}
                 <div
-                  className="mt-4 prose max-w-none"
-                  dangerouslySetInnerHTML={{
-                    __html:
-                      siteInfo?.aboutHtml || "<p>No about content yet.</p>",
-                  }}
-                />
-              </div>
-            </div>
-          </section>
-        )}
-
-        {activeTab === "reporters" && (
-          <section className="mb-6">
-            <h3 className="text-2xl font-semibold mb-4 text-gray-900">
-              Manage Reporters
-            </h3>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Create/Edit Form Card */}
-              <div className="p-6 bg-white rounded-xl shadow-lg h-full">
-                <h4 className="text-xl font-medium mb-4 border-b border-gray-200 pb-2 text-gray-900">
-                  {reporterEdit ? "Edit Reporter" : "Create New Reporter"}
-                </h4>
-                <form
-                  onSubmit={reporterEdit ? submitEditReporter : createReporter}
-                  className="space-y-4"
+                  className="card p-5 bg-white shadow-lg border-t-4 border-[var(--primary)] transition duration-300 hover:shadow-xl hover:scale-[1.01] cursor-pointer"
+                  onClick={() => setActiveTab("all")}
                 >
-                  <input
-                    value={reporterEdit ? reporterEdit.name : form.name}
-                    onChange={(e) =>
-                      reporterEdit
-                        ? setReporterEdit({
-                            ...reporterEdit,
-                            name: e.target.value,
-                          })
-                        : setForm({ ...form, name: e.target.value })
-                    }
-                    placeholder="Full Name"
-                    className="p-3 border border-gray-300 rounded-lg w-full focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition bg-white text-gray-900 placeholder-gray-500"
-                    required
-                  />
-
-                  <input
-                    value={reporterEdit ? reporterEdit.email : form.email}
-                    onChange={(e) =>
-                      reporterEdit
-                        ? setReporterEdit({
-                            ...reporterEdit,
-                            email: e.target.value,
-                          })
-                        : setForm({ ...form, email: e.target.value })
-                    }
-                    placeholder="Email"
-                    type="email"
-                    className="p-3 border border-gray-300 rounded-lg w-full focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition bg-white text-gray-900 placeholder-gray-500"
-                    required
-                  />
-
-                  <input
-                    value={
-                      reporterEdit ? reporterEdit.password || "" : form.password
-                    }
-                    onChange={(e) =>
-                      reporterEdit
-                        ? setReporterEdit({
-                            ...reporterEdit,
-                            password: e.target.value,
-                          })
-                        : setForm({ ...form, password: e.target.value })
-                    }
-                    placeholder={
-                      reporterEdit
-                        ? "New password (leave blank to keep)"
-                        : "Password"
-                    }
-                    type="password"
-                    className="p-3 border border-gray-300 rounded-lg w-full focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition bg-white text-gray-900 placeholder-gray-500"
-                    {...(reporterEdit ? {} : { required: true })}
-                  />
-                  <div className="flex gap-3">
-                    <button
-                      type="submit"
-                      className="px-5 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-teal-600 transition shadow-md transform hover:scale-[1.02]"
-                    >
-                      {reporterEdit ? "Save Changes" : "Add Reporter"}
-                    </button>
-                    {reporterEdit && (
-                      <button
-                        onClick={() => setReporterEdit(null)}
-                        type="button"
-                        className="px-5 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
-                      >
-                        Cancel
-                      </button>
-                    )}
+                  <div className="text-sm font-medium text-[var(--muted)]">
+                    Total News
                   </div>
-                </form>
+                  <div className="text-4xl font-extrabold text-gray-900">
+                    {news?.length || 0}
+                  </div>
+                </div>
+
+                <div
+                  className="card p-5 bg-white shadow-lg border-t-4 border-blue-600 transition duration-300 hover:shadow-xl hover:scale-[1.01] cursor-pointer"
+                  onClick={() => setActiveTab("reporters")}
+                >
+                  <div className="text-sm font-medium text-[var(--muted)]">
+                    Reporters
+                  </div>
+                  <div className="text-4xl font-extrabold text-gray-900">
+                    {reporters?.length || 0}
+                  </div>
+                </div>
+
+                <div
+                  className="card p-5 bg-white shadow-lg border-t-4 border-[var(--accent)] transition duration-300 hover:shadow-xl hover:scale-[1.01] cursor-pointer"
+                  onClick={() => setActiveTab("pending")}
+                >
+                  <div className="text-sm font-medium text-[var(--muted)]">
+                    Pending Approvals
+                  </div>
+                  <div className="text-4xl font-extrabold text-[var(--accent)]">
+                    {totalPending}
+                  </div>
+                </div>
+
+                <div
+                  className="card p-5 bg-white shadow-lg border-t-4 border-purple-600 transition duration-300 hover:shadow-xl hover:scale-[1.01] cursor-pointer"
+                  onClick={() => setActiveTab("categories")}
+                >
+                  <div className="text-sm font-medium text-[var(--muted)]">
+                    Categories
+                  </div>
+                  <div className="text-4xl font-extrabold text-gray-900">
+                    {categories?.length || 0}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Error Section (Light Theme) */}
+          {loadError && (
+            <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-800 rounded-lg shadow-sm">
+              <div className="font-semibold mb-2">
+                ⚠️ Data Load Error: {loadError}
+              </div>
+              <button
+                onClick={reloadAll}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+              >
+                Retry Loading Data
+              </button>
+            </div>
+          )}
+
+          {/* Quick Access to Pending Approvals (for Overview) */}
+          {activeTab === "overview" && totalPending > 0 && (
+            <section className="mb-8">
+              <h3 className="text-2xl font-semibold mb-4 text-[var(--accent)] flex items-center">
+                <Clock className="h-6 w-6 mr-2" /> Pending News for Review
+              </h3>
+              <div className="space-y-3">
+                {news
+                  .filter((n) => n.status === "pending" || n.approved === false)
+                  .slice(0, 5)
+                  .map((n) => (
+                    <div
+                      key={n._id}
+                      className="p-4 bg-white rounded-lg shadow-md border-l-4 border-amber-500 flex justify-between items-center transition hover:shadow-lg hover:bg-amber-50"
+                    >
+                      <div>
+                        <div className="font-medium text-gray-900">
+                          {n.title}
+                        </div>
+                        <div className="text-sm text-[var(--muted)]">
+                          {n.category} — by {n.author?.name}
+                        </div>
+                      </div>
+                      <div className="space-x-2 flex items-center">
+                        <button
+                          onClick={() => approveNews(n._id)}
+                          className="p-2 bg-green-600 text-white rounded-full hover:bg-green-700 transition transform hover:scale-110"
+                          title="Approve"
+                        >
+                          <Check className="h-5 w-5" />
+                        </button>
+                        <button
+                          onClick={() => removeNews(n._id)}
+                          className="p-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition transform hover:scale-110"
+                          title="Delete"
+                        >
+                          <Trash className="h-5 w-5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+              {totalPending > 5 && (
+                <button
+                  onClick={() => setActiveTab("pending")}
+                  className="mt-4 text-[var(--primary)] hover:text-teal-700 font-medium transition"
+                >
+                  View all {totalPending} pending items &rarr;
+                </button>
+              )}
+            </section>
+          )}
+
+          {/* Quick Access: Deletion Requests for Owner Review */}
+          {activeTab === "overview" && totalDeletionRequests > 0 && (
+            <section className="mb-8">
+              <h3 className="text-2xl font-semibold mb-4 text-red-600 flex items-center">
+                <Trash className="h-6 w-6 mr-2" /> Deletion Requests
+              </h3>
+              <div className="space-y-3">
+                {news
+                  .filter((n) => n.deletionRequested)
+                  .slice(0, 5)
+                  .map((n) => (
+                    <div
+                      key={n._id}
+                      className="p-4 bg-white rounded-lg shadow-md border-l-4 border-red-400 flex justify-between items-center transition hover:shadow-lg"
+                    >
+                      <div>
+                        <div className="font-medium text-gray-900">
+                          {n.title}
+                        </div>
+                        <div className="text-sm text-[var(--muted)]">
+                          by {n.author?.name} — requested{" "}
+                          {new Date(n.deletionRequestedAt).toLocaleString()}
+                        </div>
+                      </div>
+                      <div className="space-x-2 flex items-center">
+                        <button
+                          onClick={() => handleDeletionRequest(n._id, true)}
+                          className="p-2 bg-green-600 text-white rounded-full hover:bg-green-700 transition transform hover:scale-110"
+                          title="Approve Deletion"
+                        >
+                          <Check className="h-5 w-5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeletionRequest(n._id, false)}
+                          className="p-2 bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 transition transform hover:scale-110"
+                          title="Reject Deletion"
+                        >
+                          <X className="h-5 w-5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+              {totalDeletionRequests > 5 && (
+                <button
+                  onClick={() => setActiveTab("all")}
+                  className="mt-4 text-red-600 hover:text-red-800 font-medium transition"
+                >
+                  View all {totalDeletionRequests} deletion requests &rarr;
+                </button>
+              )}
+            </section>
+          )}
+
+          {/* Create / Edit News Form (owner) */}
+          {activeTab === "create" && editingNews && (
+            <div className="mb-8 p-6 bg-white rounded-xl shadow-lg border-t-4 border-[var(--primary)] transition duration-300 animate-in fade-in slide-in-from-top-4">
+              <h3 className="text-2xl font-semibold mb-4 text-[var(--primary)]">
+                {editingNews._id ? "Edit News Article" : "Create New News"}
+              </h3>
+              <ErrorBoundary>
+                <Suspense
+                  fallback={
+                    <div className="p-4 text-[var(--muted)]">
+                      Loading rich text editor…
+                    </div>
+                  }
+                >
+                  <LazyNewsForm
+                    initial={editingNews}
+                    onSaved={() => {
+                      setEditingNews(null);
+                      loadNews();
+                      showToast({
+                        type: "success",
+                        message: "News saved successfully!",
+                      });
+                    }}
+                    onCancel={() => setEditingNews(null)}
+                    categories={categories}
+                    districts={districts}
+                  />
+                </Suspense>
+              </ErrorBoundary>
+            </div>
+          )}
+
+          {/* Reporters Tab */}
+          {/* About Page Editor (owner only) */}
+          {activeTab === "about" && (
+            <section className="mb-6">
+              <h3 className="text-2xl font-semibold mb-4 text-gray-900">
+                Edit About Page
+              </h3>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="p-6 bg-white rounded-xl shadow-lg">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Editor Name
+                  </label>
+                  <input
+                    value={siteInfo?.editorName || ""}
+                    onChange={(e) =>
+                      setSiteInfo({
+                        ...(siteInfo || {}),
+                        editorName: e.target.value,
+                      })
+                    }
+                    placeholder="Editor name"
+                    className="w-full p-3 border border-gray-300 rounded-lg mb-3"
+                  />
+
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Editor Title
+                  </label>
+                  <input
+                    value={siteInfo?.editorTitle || ""}
+                    onChange={(e) =>
+                      setSiteInfo({
+                        ...(siteInfo || {}),
+                        editorTitle: e.target.value,
+                      })
+                    }
+                    placeholder="Editor title (e.g., Editor-in-Chief)"
+                    className="w-full p-3 border border-gray-300 rounded-lg mb-3"
+                  />
+
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Editor Email
+                  </label>
+                  <input
+                    value={siteInfo?.editorEmail || ""}
+                    onChange={(e) =>
+                      setSiteInfo({
+                        ...(siteInfo || {}),
+                        editorEmail: e.target.value,
+                      })
+                    }
+                    placeholder="editor@example.com"
+                    className="w-full p-3 border border-gray-300 rounded-lg mb-3"
+                  />
+
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Editor Image URL
+                  </label>
+                  <input
+                    value={siteInfo?.editorImage || ""}
+                    onChange={(e) =>
+                      setSiteInfo({
+                        ...(siteInfo || {}),
+                        editorImage: e.target.value,
+                      })
+                    }
+                    placeholder="https://...jpg"
+                    className="w-full p-3 border border-gray-300 rounded-lg mb-3"
+                  />
+                  {siteInfo?.editorImage && (
+                    <img
+                      src={siteInfo.editorImage}
+                      alt="editor"
+                      className="w-28 h-28 object-cover rounded-full mt-2"
+                    />
+                  )}
+
+                  <label className="block text-sm font-medium text-gray-700 mb-1 mt-4">
+                    Mission (short)
+                  </label>
+                  <textarea
+                    value={siteInfo?.mission || ""}
+                    onChange={(e) =>
+                      setSiteInfo({
+                        ...(siteInfo || {}),
+                        mission: e.target.value,
+                      })
+                    }
+                    className="w-full p-3 border border-gray-300 rounded-lg mb-3"
+                    rows={4}
+                  />
+
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    About HTML (rich text)
+                  </label>
+                  <textarea
+                    value={siteInfo?.aboutHtml || ""}
+                    onChange={(e) =>
+                      setSiteInfo({
+                        ...(siteInfo || {}),
+                        aboutHtml: e.target.value,
+                      })
+                    }
+                    className="w-full p-3 border border-gray-300 rounded-lg mb-3"
+                    rows={6}
+                  />
+
+                  <div className="flex gap-3 mt-4">
+                    <button
+                      onClick={async () => {
+                        try {
+                          const res = await authFetch(`/api/site`, {
+                            method: "PUT",
+                            body: siteInfo || {},
+                          });
+                          if (res && res._id) {
+                            showToast({
+                              type: "success",
+                              message: "About page updated",
+                            });
+                            setSiteInfo(res);
+                          } else {
+                            showToast({ type: "success", message: "Saved" });
+                          }
+                        } catch (err) {
+                          console.error("Failed to save site info", err);
+                          showToast({
+                            type: "error",
+                            message: err?.message || "Failed to save",
+                          });
+                        }
+                      }}
+                      className="px-4 py-2 bg-[var(--primary)] text-white rounded-md"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => loadSiteInfo()}
+                      className="px-4 py-2 bg-gray-100 rounded-md"
+                    >
+                      Reload
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-6 bg-white rounded-xl shadow-lg">
+                  <h4 className="text-lg font-semibold mb-3">Preview</h4>
+                  <div className="flex items-start gap-4">
+                    <div>
+                      <img
+                        src={siteInfo?.editorImage || "/vite.svg"}
+                        alt="editor"
+                        className="w-24 h-24 object-cover rounded-full"
+                      />
+                    </div>
+                    <div>
+                      <h5 className="text-lg font-bold">
+                        {siteInfo?.editorName || "Editor Name"}
+                      </h5>
+                      <p className="text-sm text-gray-600">
+                        {siteInfo?.editorTitle || "Editor-in-Chief"}
+                      </p>
+                      <p className="text-sm text-gray-700 mt-3">
+                        {siteInfo?.mission}
+                      </p>
+                    </div>
+                  </div>
+                  <div
+                    className="mt-4 prose max-w-none"
+                    dangerouslySetInnerHTML={{
+                      __html:
+                        siteInfo?.aboutHtml || "<p>No about content yet.</p>",
+                    }}
+                  />
+                </div>
+              </div>
+            </section>
+          )}
+
+          {activeTab === "reporters" && (
+            <section className="mb-6">
+              <h3 className="text-2xl font-semibold mb-4 text-gray-900">
+                Manage Reporters
+              </h3>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Create/Edit Form Card */}
+                <div className="p-6 bg-white rounded-xl shadow-lg h-full">
+                  <h4 className="text-xl font-medium mb-4 border-b border-gray-200 pb-2 text-gray-900">
+                    {reporterEdit ? "Edit Reporter" : "Create New Reporter"}
+                  </h4>
+                  <form
+                    onSubmit={
+                      reporterEdit ? submitEditReporter : createReporter
+                    }
+                    className="space-y-4"
+                  >
+                    <input
+                      value={reporterEdit ? reporterEdit.name : form.name}
+                      onChange={(e) =>
+                        reporterEdit
+                          ? setReporterEdit({
+                              ...reporterEdit,
+                              name: e.target.value,
+                            })
+                          : setForm({ ...form, name: e.target.value })
+                      }
+                      placeholder="Full Name"
+                      className="p-3 border border-gray-300 rounded-lg w-full focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition bg-white text-gray-900 placeholder-gray-500"
+                      required
+                    />
+
+                    <input
+                      value={reporterEdit ? reporterEdit.email : form.email}
+                      onChange={(e) =>
+                        reporterEdit
+                          ? setReporterEdit({
+                              ...reporterEdit,
+                              email: e.target.value,
+                            })
+                          : setForm({ ...form, email: e.target.value })
+                      }
+                      placeholder="Email"
+                      type="email"
+                      className="p-3 border border-gray-300 rounded-lg w-full focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition bg-white text-gray-900 placeholder-gray-500"
+                      required
+                    />
+
+                    <input
+                      value={
+                        reporterEdit
+                          ? reporterEdit.password || ""
+                          : form.password
+                      }
+                      onChange={(e) =>
+                        reporterEdit
+                          ? setReporterEdit({
+                              ...reporterEdit,
+                              password: e.target.value,
+                            })
+                          : setForm({ ...form, password: e.target.value })
+                      }
+                      placeholder={
+                        reporterEdit
+                          ? "New password (leave blank to keep)"
+                          : "Password"
+                      }
+                      type="password"
+                      className="p-3 border border-gray-300 rounded-lg w-full focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition bg-white text-gray-900 placeholder-gray-500"
+                      {...(reporterEdit ? {} : { required: true })}
+                    />
+                    <div className="flex gap-3">
+                      <button
+                        type="submit"
+                        className="px-5 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-teal-600 transition shadow-md transform hover:scale-[1.02]"
+                      >
+                        {reporterEdit ? "Save Changes" : "Add Reporter"}
+                      </button>
+                      {reporterEdit && (
+                        <button
+                          onClick={() => setReporterEdit(null)}
+                          type="button"
+                          className="px-5 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </div>
+                  </form>
+                </div>
+
+                {/* Reporters List Card */}
+                <div className="p-6 bg-white rounded-xl shadow-lg">
+                  <h4 className="text-xl font-medium mb-4 border-b border-gray-200 pb-2 text-gray-900">
+                    Reporter List ({reporters.length})
+                  </h4>
+                  <ul className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+                    {reporters.map((r) => (
+                      <li
+                        key={r._id}
+                        className="p-3 border border-gray-200 rounded-lg flex justify-between items-center bg-gray-50 hover:bg-gray-100 transition duration-200 transform hover:translate-x-0.5"
+                      >
+                        <div>
+                          <div className="font-semibold text-gray-900">
+                            {r.name}
+                          </div>
+                          <div className="text-sm text-[var(--muted)]">
+                            {r.email}
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          {/* Buttons with hover scale effect */}
+                          <button
+                            onClick={() => startEditReporter(r)}
+                            className="p-2 bg-yellow-500 text-white rounded-full hover:bg-yellow-600 transition transform hover:scale-110"
+                            title="Edit"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4"
+                              viewBox="0 0 20 20"
+                              fill="currentColor"
+                            >
+                              <path
+                                d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zm-6.882 4.414a1 1 0 010 1.414L7.586 10l-4 4V16h2l4-4 .172.172a1 1 0 011.414 0l4-4a1 1 0 010-1.414l-4-4a1 1 0 01-1.414 0l-4 4z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => removeReporter(r._id)}
+                            className="p-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition transform hover:scale-110"
+                            title="Remove"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4"
+                              viewBox="0 0 20 20"
+                              fill="currentColor"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 10-2 0v6a1 1 0 102 0V8z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* All News & Pending Tabs */}
+          {(activeTab === "all" || activeTab === "pending") && (
+            <section>
+              <h3 className="text-2xl font-semibold mb-4 text-gray-900">
+                {activeTab === "pending"
+                  ? "Pending News for Approval"
+                  : "All News Articles"}
+              </h3>
+
+              {/* Filters and Sorting (Card Container) */}
+              <div className="p-4 bg-white shadow-md rounded-xl mb-6 flex flex-col md:flex-row md:items-center md:gap-4 justify-between">
+                <div className="flex items-center w-full md:w-auto mb-3 md:mb-0 relative">
+                  <Search className="h-5 w-5 absolute left-3 text-[var(--muted)]" />
+                  <input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search title, content, or author..."
+                    className="p-2 pl-10 border border-gray-300 rounded-lg w-full md:w-80 focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition bg-white text-gray-900 placeholder-gray-500"
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Select fields with updated light theme styling */}
+                  <select
+                    value={filterCategory}
+                    onChange={(e) => setFilterCategory(e.target.value)}
+                    className="p-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-[var(--primary)]"
+                  >
+                    <option value="">Category: All</option>
+                    {categories.map((c) => (
+                      <option key={c._id} value={c.slug || c.name}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                  {/* ... other selects updated similarly ... */}
+                </div>
               </div>
 
-              {/* Reporters List Card */}
-              <div className="p-6 bg-white rounded-xl shadow-lg">
-                <h4 className="text-xl font-medium mb-4 border-b border-gray-200 pb-2 text-gray-900">
-                  Reporter List ({reporters.length})
-                </h4>
-                <ul className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
-                  {reporters.map((r) => (
+              {/* News List Grid - Overflow Fix Implemented */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {filteredNews.map((n) => (
+                  <div
+                    key={n._id}
+                    // Added transition, scale, and box shadow for motion
+                    className="p-5 bg-white shadow-lg rounded-xl flex flex-col justify-between border-t-4 border-gray-200 transition duration-300 hover:shadow-xl hover:scale-[1.01] transform"
+                  >
+                    <div>
+                      <span
+                        className={`inline-block px-3 py-1 text-xs font-semibold rounded-full mb-2 ${getStatusColor(
+                          n.status
+                        )}`}
+                      >
+                        {getStatusLabel(n.status)}
+                      </span>
+                      {/* 🌟 OVERFLOW FIX: line-clamp-2 for titles */}
+                      <div className="font-bold text-lg text-gray-900 leading-snug mb-1 line-clamp-2">
+                        {n.title}
+                      </div>
+                      <div className="text-xs font-medium text-[var(--primary)]">
+                        {n.category}
+                      </div>
+                      <div className="text-sm text-[var(--muted)] mt-1">
+                        by {n.author?.name || "Owner"}
+                      </div>
+                      {/* 🌟 OVERFLOW FIX: line-clamp-3 for content snippet */}
+                      <div className="mt-3 text-sm text-gray-600 line-clamp-3">
+                        {n.content
+                          ? stripHtml(n.content).slice(0, 100) + "..."
+                          : ""}
+                      </div>
+                    </div>
+
+                    <div className="mt-4 border-t border-gray-200 pt-3 space-y-2">
+                      {activeTab === "pending" && n.status === "pending" && (
+                        <div className="flex gap-2">
+                          {/* Approval button */}
+                          <button
+                            onClick={() => approveNews(n._id)}
+                            className="flex-1 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center justify-center text-sm transform hover:scale-105"
+                          >
+                            <Check className="h-4 w-4 mr-1" /> Approve
+                          </button>
+                          {/* Delete button for pending items */}
+                          <button
+                            onClick={() => removeNews(n._id)}
+                            className="flex-1 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition flex items-center justify-center text-sm transform hover:scale-105"
+                          >
+                            <Trash className="h-4 w-4 mr-1" /> Delete
+                          </button>
+                        </div>
+                      )}
+
+                      <div className="flex justify-between items-center pt-1">
+                        <label className="flex items-center gap-1 text-sm text-[var(--muted)] cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={!!n.headline}
+                            onChange={(e) =>
+                              toggleHeadline(n._id, e.target.checked)
+                            }
+                            className="form-checkbox h-4 w-4 text-[var(--primary)] rounded border-gray-400"
+                          />
+                          <Zap
+                            className={`h-4 w-4 ${
+                              n.headline
+                                ? "text-[var(--accent)]"
+                                : "text-[var(--muted)]"
+                            } transition duration-200`}
+                          />
+                          <span className="font-medium">Headline</span>
+                        </label>
+                        <div className="flex gap-2">
+                          {/* Action buttons with motion */}
+                          <button
+                            onClick={() => {
+                              setActiveTab("create");
+                              setEditingNews(n);
+                            }}
+                            className="p-1.5 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition transform hover:scale-110"
+                            title="Edit Article"
+                          >
+                            {/* ... icon ... */}
+                          </button>
+                          <button
+                            onClick={() => removeNews(n._id)}
+                            className="p-1.5 bg-red-600 text-white rounded-full hover:bg-red-700 transition transform hover:scale-110"
+                            title="Delete Article"
+                          >
+                            {/* ... icon ... */}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Categories Tab (Apply light theme and hover effects) */}
+          {activeTab === "categories" && (
+            <section>
+              <h3 className="text-2xl font-semibold mb-4 text-gray-900">
+                Manage Categories
+              </h3>
+              <div className="mb-6">
+                <button
+                  onClick={() => openCategoryModal("create")}
+                  className="px-5 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-teal-600 transition shadow-md flex items-center transform hover:scale-[1.02]"
+                >
+                  <Plus className="h-5 w-5 mr-2" /> Create New Category
+                </button>
+              </div>
+
+              <div className="p-6 bg-white rounded-xl shadow-lg max-w-lg">
+                <ul className="space-y-3">
+                  {categories.map((c) => (
                     <li
-                      key={r._id}
+                      key={c._id}
                       className="p-3 border border-gray-200 rounded-lg flex justify-between items-center bg-gray-50 hover:bg-gray-100 transition duration-200 transform hover:translate-x-0.5"
                     >
                       <div>
                         <div className="font-semibold text-gray-900">
-                          {r.name}
+                          {c.name}
                         </div>
-                        <div className="text-sm text-[var(--muted)]">
-                          {r.email}
+                        <div className="text-sm text-[var(--muted)] font-mono">
+                          {/* Slug removed from categories - showing createdAt for reference */}
+                          Created: {new Date(c.createdAt).toLocaleDateString()}
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        {/* Buttons with hover scale effect */}
+                        {/* Action buttons with motion */}
                         <button
-                          onClick={() => startEditReporter(r)}
+                          onClick={() => startEditCategory(c)}
                           className="p-2 bg-yellow-500 text-white rounded-full hover:bg-yellow-600 transition transform hover:scale-110"
                           title="Edit"
                         >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-4 w-4"
-                            viewBox="0 0 20 20"
-                            fill="currentColor"
-                          >
-                            <path
-                              d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zm-6.882 4.414a1 1 0 010 1.414L7.586 10l-4 4V16h2l4-4 .172.172a1 1 0 011.414 0l4-4a1 1 0 010-1.414l-4-4a1 1 0 01-1.414 0l-4 4z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
+                          {/* ... icon ... */}
                         </button>
                         <button
-                          onClick={() => removeReporter(r._id)}
+                          onClick={() => deleteCategory(c._id)}
                           className="p-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition transform hover:scale-110"
-                          title="Remove"
+                          title="Delete"
                         >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-4 w-4"
-                            viewBox="0 0 20 20"
-                            fill="currentColor"
-                          >
-                            <path
-                              fillRule="evenodd"
-                              d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 10-2 0v6a1 1 0 102 0V8z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
+                          {/* ... icon ... */}
                         </button>
                       </div>
                     </li>
                   ))}
                 </ul>
               </div>
-            </div>
-          </section>
-        )}
+            </section>
+          )}
 
-        {/* All News & Pending Tabs */}
-        {(activeTab === "all" || activeTab === "pending") && (
-          <section>
-            <h3 className="text-2xl font-semibold mb-4 text-gray-900">
-              {activeTab === "pending"
-                ? "Pending News for Approval"
-                : "All News Articles"}
-            </h3>
-
-            {/* Filters and Sorting (Card Container) */}
-            <div className="p-4 bg-white shadow-md rounded-xl mb-6 flex flex-col md:flex-row md:items-center md:gap-4 justify-between">
-              <div className="flex items-center w-full md:w-auto mb-3 md:mb-0 relative">
-                <Search className="h-5 w-5 absolute left-3 text-[var(--muted)]" />
-                <input
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search title, content, or author..."
-                  className="p-2 pl-10 border border-gray-300 rounded-lg w-full md:w-80 focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition bg-white text-gray-900 placeholder-gray-500"
-                />
+          {/* Districts Tab */}
+          {activeTab === "districts" && (
+            <section>
+              <h3 className="text-2xl font-semibold mb-4 text-gray-900">
+                Manage Districts
+              </h3>
+              <div className="mb-6">
+                <button
+                  onClick={() => openDistrictModal("create")}
+                  className="px-5 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-teal-600 transition shadow-md flex items-center transform hover:scale-[1.02]"
+                >
+                  <Plus className="h-5 w-5 mr-2" /> Create New District
+                </button>
               </div>
 
-              <div className="flex flex-wrap items-center gap-3">
-                {/* Select fields with updated light theme styling */}
-                <select
-                  value={filterCategory}
-                  onChange={(e) => setFilterCategory(e.target.value)}
-                  className="p-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:ring-[var(--primary)]"
-                >
-                  <option value="">Category: All</option>
-                  {categories.map((c) => (
-                    <option key={c._id} value={c.slug || c.name}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-                {/* ... other selects updated similarly ... */}
-              </div>
-            </div>
-
-            {/* News List Grid - Overflow Fix Implemented */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredNews.map((n) => (
-                <div
-                  key={n._id}
-                  // Added transition, scale, and box shadow for motion
-                  className="p-5 bg-white shadow-lg rounded-xl flex flex-col justify-between border-t-4 border-gray-200 transition duration-300 hover:shadow-xl hover:scale-[1.01] transform"
-                >
-                  <div>
-                    <span
-                      className={`inline-block px-3 py-1 text-xs font-semibold rounded-full mb-2 ${getStatusColor(
-                        n.status
-                      )}`}
+              <div className="p-6 bg-white rounded-xl shadow-lg max-w-lg">
+                <ul className="space-y-3">
+                  {districts.map((d) => (
+                    <li
+                      key={d._id}
+                      className="p-3 border border-gray-200 rounded-lg flex justify-between items-center bg-gray-50 hover:bg-gray-100 transition duration-200 transform hover:translate-x-0.5"
                     >
-                      {getStatusLabel(n.status)}
-                    </span>
-                    {/* 🌟 OVERFLOW FIX: line-clamp-2 for titles */}
-                    <div className="font-bold text-lg text-gray-900 leading-snug mb-1 line-clamp-2">
-                      {n.title}
-                    </div>
-                    <div className="text-xs font-medium text-[var(--primary)]">
-                      {n.category}
-                    </div>
-                    <div className="text-sm text-[var(--muted)] mt-1">
-                      by {n.author?.name || "Owner"}
-                    </div>
-                    {/* 🌟 OVERFLOW FIX: line-clamp-3 for content snippet */}
-                    <div className="mt-3 text-sm text-gray-600 line-clamp-3">
-                      {n.content
-                        ? stripHtml(n.content).slice(0, 100) + "..."
-                        : ""}
-                    </div>
-                  </div>
-
-                  <div className="mt-4 border-t border-gray-200 pt-3 space-y-2">
-                    {activeTab === "pending" && n.status === "pending" && (
-                      <div className="flex gap-2">
-                        {/* Approval button */}
-                        <button
-                          onClick={() => approveNews(n._id)}
-                          className="flex-1 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center justify-center text-sm transform hover:scale-105"
-                        >
-                          <Check className="h-4 w-4 mr-1" /> Approve
-                        </button>
-                        {/* Delete button for pending items */}
-                        <button
-                          onClick={() => removeNews(n._id)}
-                          className="flex-1 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition flex items-center justify-center text-sm transform hover:scale-105"
-                        >
-                          <Trash className="h-4 w-4 mr-1" /> Delete
-                        </button>
-                      </div>
-                    )}
-
-                    <div className="flex justify-between items-center pt-1">
-                      <label className="flex items-center gap-1 text-sm text-[var(--muted)] cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={!!n.headline}
-                          onChange={(e) =>
-                            toggleHeadline(n._id, e.target.checked)
-                          }
-                          className="form-checkbox h-4 w-4 text-[var(--primary)] rounded border-gray-400"
-                        />
-                        <Zap
-                          className={`h-4 w-4 ${
-                            n.headline
-                              ? "text-[var(--accent)]"
-                              : "text-[var(--muted)]"
-                          } transition duration-200`}
-                        />
-                        <span className="font-medium">Headline</span>
-                      </label>
-                      <div className="flex gap-2">
-                        {/* Action buttons with motion */}
-                        <button
-                          onClick={() => {
-                            setActiveTab("create");
-                            setEditingNews(n);
-                          }}
-                          className="p-1.5 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition transform hover:scale-110"
-                          title="Edit Article"
-                        >
-                          {/* ... icon ... */}
-                        </button>
-                        <button
-                          onClick={() => removeNews(n._id)}
-                          className="p-1.5 bg-red-600 text-white rounded-full hover:bg-red-700 transition transform hover:scale-110"
-                          title="Delete Article"
-                        >
-                          {/* ... icon ... */}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* Categories Tab (Apply light theme and hover effects) */}
-        {activeTab === "categories" && (
-          <section>
-            <h3 className="text-2xl font-semibold mb-4 text-gray-900">
-              Manage Categories
-            </h3>
-            <div className="mb-6">
-              <button
-                onClick={() => openCategoryModal("create")}
-                className="px-5 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-teal-600 transition shadow-md flex items-center transform hover:scale-[1.02]"
-              >
-                <Plus className="h-5 w-5 mr-2" /> Create New Category
-              </button>
-            </div>
-
-            <div className="p-6 bg-white rounded-xl shadow-lg max-w-lg">
-              <ul className="space-y-3">
-                {categories.map((c) => (
-                  <li
-                    key={c._id}
-                    className="p-3 border border-gray-200 rounded-lg flex justify-between items-center bg-gray-50 hover:bg-gray-100 transition duration-200 transform hover:translate-x-0.5"
-                  >
-                    <div>
-                      <div className="font-semibold text-gray-900">
-                        {c.name}
-                      </div>
-                      <div className="text-sm text-[var(--muted)] font-mono">
-                        {/* Slug removed from categories - showing createdAt for reference */}
-                        Created: {new Date(c.createdAt).toLocaleDateString()}
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      {/* Action buttons with motion */}
-                      <button
-                        onClick={() => startEditCategory(c)}
-                        className="p-2 bg-yellow-500 text-white rounded-full hover:bg-yellow-600 transition transform hover:scale-110"
-                        title="Edit"
-                      >
-                        {/* ... icon ... */}
-                      </button>
-                      <button
-                        onClick={() => deleteCategory(c._id)}
-                        className="p-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition transform hover:scale-110"
-                        title="Delete"
-                      >
-                        {/* ... icon ... */}
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </section>
-        )}
-
-        {/* Districts Tab */}
-        {activeTab === "districts" && (
-          <section>
-            <h3 className="text-2xl font-semibold mb-4 text-gray-900">
-              Manage Districts
-            </h3>
-            <div className="mb-6">
-              <button
-                onClick={() => openDistrictModal("create")}
-                className="px-5 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-teal-600 transition shadow-md flex items-center transform hover:scale-[1.02]"
-              >
-                <Plus className="h-5 w-5 mr-2" /> Create New District
-              </button>
-            </div>
-
-            <div className="p-6 bg-white rounded-xl shadow-lg max-w-lg">
-              <ul className="space-y-3">
-                {districts.map((d) => (
-                  <li
-                    key={d._id}
-                    className="p-3 border border-gray-200 rounded-lg flex justify-between items-center bg-gray-50 hover:bg-gray-100 transition duration-200 transform hover:translate-x-0.5"
-                  >
-                    <div>
-                      <div className="font-semibold text-gray-900">
-                        {d.name}
-                      </div>
-                      <div className="text-sm text-[var(--muted)] font-mono">
-                        Slug: {d.slug}
-                      </div>
-                      {d.state && (
-                        <div className="text-sm text-[var(--muted)]">
-                          State: {d.state}
+                      <div>
+                        <div className="font-semibold text-gray-900">
+                          {d.name}
                         </div>
-                      )}
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => startEditDistrict(d)}
-                        className="p-2 bg-yellow-500 text-white rounded-full hover:bg-yellow-600 transition transform hover:scale-110"
-                        title="Edit"
-                      ></button>
-                      <button
-                        onClick={() => deleteDistrict(d._id)}
-                        className="p-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition transform hover:scale-110"
-                        title="Delete"
-                      ></button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </section>
-        )}
-
-        {/* ... Settings Tab and Modals (Modal content adjusted for light theme) ... */}
-
-        {/* Category Modal - Ensure inputs are light theme compliant */}
-        {categoryModalOpen && editingCategory && (
-          <Modal
-            title={
-              categoryModalMode === "create"
-                ? "Create Category"
-                : "Edit Category"
-            }
-            onClose={() => {
-              setCategoryModalOpen(false);
-              setEditingCategory(null);
-            }}
-          >
-            <form onSubmit={submitCategoryModal} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Name
-                </label>
-                <input
-                  value={editingCategory.name}
-                  onChange={(e) =>
-                    setEditingCategory({
-                      ...editingCategory,
-                      name: e.target.value,
-                    })
-                  }
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition bg-white text-gray-900 placeholder-gray-500"
-                  placeholder="Name (e.g., Sports)"
-                  required
-                />
+                        <div className="text-sm text-[var(--muted)] font-mono">
+                          Slug: {d.slug}
+                        </div>
+                        {d.state && (
+                          <div className="text-sm text-[var(--muted)]">
+                            State: {d.state}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => startEditDistrict(d)}
+                          className="p-2 bg-yellow-500 text-white rounded-full hover:bg-yellow-600 transition transform hover:scale-110"
+                          title="Edit"
+                        ></button>
+                        <button
+                          onClick={() => deleteDistrict(d._id)}
+                          className="p-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition transform hover:scale-110"
+                          title="Delete"
+                        ></button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
               </div>
+            </section>
+          )}
 
-              {/* No slug field for categories anymore */}
+          {/* ... Settings Tab and Modals (Modal content adjusted for light theme) ... */}
 
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCategoryModalOpen(false);
-                    setEditingCategory(null);
-                  }}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-teal-600"
-                >
-                  {categoryModalMode === "create" ? "Create" : "Save"}
-                </button>
-              </div>
-            </form>
-          </Modal>
-        )}
-
-        {/* District Modal */}
-        {districtModalOpen && editingDistrict && (
-          <Modal
-            title={
-              districtModalMode === "create"
-                ? "Create District"
-                : "Edit District"
-            }
-            onClose={() => {
-              setDistrictModalOpen(false);
-              setEditingDistrict(null);
-            }}
-          >
-            <form onSubmit={submitDistrictModal} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Name
-                </label>
-                <input
-                  value={editingDistrict.name}
-                  onChange={(e) =>
-                    setEditingDistrict({
-                      ...editingDistrict,
-                      name: e.target.value,
-                    })
-                  }
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition bg-white text-gray-900 placeholder-gray-500"
-                  placeholder="Name (e.g., इंदौर)"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  State (optional)
-                </label>
-                <input
-                  value={editingDistrict.state || ""}
-                  onChange={(e) =>
-                    setEditingDistrict({
-                      ...editingDistrict,
-                      state: e.target.value,
-                    })
-                  }
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition bg-white text-gray-900 placeholder-gray-500"
-                  placeholder="State (e.g., मध्य प्रदेश)"
-                />
-              </div>
-
-              {districtModalMode === "edit" && (
+          {/* Category Modal - Ensure inputs are light theme compliant */}
+          {categoryModalOpen && editingCategory && (
+            <Modal
+              title={
+                categoryModalMode === "create"
+                  ? "Create Category"
+                  : "Edit Category"
+              }
+              onClose={() => {
+                setCategoryModalOpen(false);
+                setEditingCategory(null);
+              }}
+            >
+              <form onSubmit={submitCategoryModal} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Slug (url-friendly)
+                    Name
                   </label>
                   <input
-                    value={editingDistrict.slug || ""}
+                    value={editingCategory.name}
                     onChange={(e) =>
-                      setEditingDistrict({
-                        ...editingDistrict,
-                        slug: e.target.value,
+                      setEditingCategory({
+                        ...editingCategory,
+                        name: e.target.value,
                       })
                     }
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition bg-white text-gray-900 placeholder-gray-500 font-mono"
-                    placeholder="slug-for-district"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition bg-white text-gray-900 placeholder-gray-500"
+                    placeholder="Name (e.g., Sports)"
                     required
                   />
                 </div>
-              )}
 
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDistrictModalOpen(false);
-                    setEditingDistrict(null);
-                  }}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-teal-600"
-                >
-                  {districtModalMode === "create" ? "Create" : "Save"}
-                </button>
-              </div>
-            </form>
-          </Modal>
-        )}
-      </main>
+                {/* No slug field for categories anymore */}
+
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCategoryModalOpen(false);
+                      setEditingCategory(null);
+                    }}
+                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-teal-600"
+                  >
+                    {categoryModalMode === "create" ? "Create" : "Save"}
+                  </button>
+                </div>
+              </form>
+            </Modal>
+          )}
+
+          {/* District Modal */}
+          {districtModalOpen && editingDistrict && (
+            <Modal
+              title={
+                districtModalMode === "create"
+                  ? "Create District"
+                  : "Edit District"
+              }
+              onClose={() => {
+                setDistrictModalOpen(false);
+                setEditingDistrict(null);
+              }}
+            >
+              <form onSubmit={submitDistrictModal} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Name
+                  </label>
+                  <input
+                    value={editingDistrict.name}
+                    onChange={(e) =>
+                      setEditingDistrict({
+                        ...editingDistrict,
+                        name: e.target.value,
+                      })
+                    }
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition bg-white text-gray-900 placeholder-gray-500"
+                    placeholder="Name (e.g., इंदौर)"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    State (optional)
+                  </label>
+                  <input
+                    value={editingDistrict.state || ""}
+                    onChange={(e) =>
+                      setEditingDistrict({
+                        ...editingDistrict,
+                        state: e.target.value,
+                      })
+                    }
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition bg-white text-gray-900 placeholder-gray-500"
+                    placeholder="State (e.g., मध्य प्रदेश)"
+                  />
+                </div>
+
+                {districtModalMode === "edit" && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Slug (url-friendly)
+                    </label>
+                    <input
+                      value={editingDistrict.slug || ""}
+                      onChange={(e) =>
+                        setEditingDistrict({
+                          ...editingDistrict,
+                          slug: e.target.value,
+                        })
+                      }
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition bg-white text-gray-900 placeholder-gray-500 font-mono"
+                      placeholder="slug-for-district"
+                      required
+                    />
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDistrictModalOpen(false);
+                      setEditingDistrict(null);
+                    }}
+                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-teal-600"
+                  >
+                    {districtModalMode === "create" ? "Create" : "Save"}
+                  </button>
+                </div>
+              </form>
+            </Modal>
+          )}
+        </main>
+      </ErrorBoundary>
     </div>
   );
 }

@@ -2,41 +2,23 @@ import News from "../models/News.js";
 import District from "../models/District.js";
 import Category from "../models/Category.js";
 import { v2 as cloudinary } from "cloudinary";
-
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
-
-// Helper to strip tags/entities for content validation
-const stripHtml = (s = "") => {
-  let t = String(s || "");
-  t = t.replace(/<[^>]*>/g, "");
-  t = t.replace(/&[^;]+;/g, " ");
-  return t.replace(/\s+/g, " ").trim();
-};
-
-// List news with optional filters and search
 export async function listNews(req, res) {
   const filter = {};
-  const normalizeForMatch = (s = "") =>
-    String(s)
+
+  const normalize = (s = "") =>
+    String(s || "")
       .toLowerCase()
-    .replace(/[\s\-]+/g, "")
-    .replace(/[^\p{L}\p{N}]+/gu, "")
+      .replace(/[\s\-]+/g, "")
+      .replace(/[^\p{L}\p{N}]+/gu, "")
       .trim();
+
+  // CATEGORY handling (robust: exact, normalized, or state shortcut)
   if (req.query.category) {
-    // Robust category matching:
-    // 1. Try exact case-insensitive match against Category.name
-    // 2. Try normalized name match (strip punctuation/spacing) to handle slug-like keys
-    // 3. Fallback to case-insensitive exact-match regex on the News.category field
     const cat = String(req.query.category || "").trim();
     if (cat) {
-      const catKey = normalizeForMatch(cat);
-      // If category indicates the whole state (Madhya Pradesh in Hindi or English),
-      // expand to include all MP districts instead of treating it as a category.
-      if (catKey.includes("madhya") || catKey.includes("मध्य")) {
+      const key = normalize(cat);
+      if (key.includes("madhya") || key.includes("मध्य")) {
+        // expand to all MP districts
         try {
           const districts = await District.find({
             $or: [
@@ -46,73 +28,53 @@ export async function listNews(req, res) {
             ],
           }).lean();
           const names = (districts || []).map((d) => d.name).filter(Boolean);
-          if (names.length) {
-            filter.district = { $in: names };
-            // skip category filtering when user requested the state view
-            // (we want all districts in MP)
-            // proceed to other filters
+          if (names.length) filter.district = { $in: names };
+        } catch (err) {
+          console.error("Failed to expand MP districts from category", err);
+        }
+      } else {
+        // try to resolve category name from Category collection
+        const esc = cat.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&");
+        try {
+          const exact = await Category.findOne({
+            name: { $regex: `^${esc}$`, $options: "i" },
+          }).lean();
+          if (exact && exact.name) {
+            filter.category = exact.name;
+          } else {
+            const cats = await Category.find().lean();
+            const found = (cats || []).find((c) => normalize(c.name) === key);
+            if (found && found.name) filter.category = found.name;
+            else filter.category = { $regex: `^${esc}$`, $options: "i" };
           }
         } catch (err) {
-          console.error("Failed to expand madhya-pradesh from category", err);
+          console.error("Category lookup failed", err);
+          filter.category = { $regex: `^${esc}$`, $options: "i" };
         }
-        // continue without setting filter.category
-        // (we already set filter.district above when possible)
-      } else {
-      const esc = cat.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&");
-      try {
-        // attempt to find a Category with exact name (case-insensitive)
-        const exactCat = await Category.findOne({
-          name: { $regex: `^${esc}$`, $options: "i" },
-        }).lean();
-        if (exactCat && exactCat.name) {
-          filter.category = exactCat.name;
-        } else {
-          // normalized fallback: compare a simple ascii/deva-norm form
-          const cats = await Category.find().lean();
-          const normalize = (s = "") =>
-            String(s)
-              .toLowerCase()
-              .replace(/[^\p{L}\p{N}]+/gu, "")
-              .trim();
-          const pnorm = normalize(cat);
-          const found = (cats || []).find((c) => normalize(c.name) === pnorm);
-          if (found && found.name) {
-            filter.category = found.name;
-          } else {
-            // final fallback: case-insensitive exact-match against stored News.category
-                filter.category = { $regex: `^${esc}$`, $options: "i" };
-          }
-        }
-      } catch (err) {
-        console.error("Category lookup failed", err);
-        const esc2 = cat.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&");
-        filter.category = { $regex: `^${esc2}$`, $options: "i" };
       }
     }
   }
-  // Support a special state-wide shortcut: `district=madhya-pradesh` or `state=madhya-pradesh`
-  // which expands to all districts in that state. Otherwise, apply district filter directly.
+
+  // DISTRICT handling (support madhya-pradesh as state shortcut)
   if (req.query.district || req.query.state) {
     const districtParam = req.query.district || req.query.state;
-    const dKey = normalizeForMatch(String(districtParam || ""));
-    if (dKey.includes("madhya") || dKey.includes("मध्य")) {
+    const key = normalize(String(districtParam || ""));
+    if (key.includes("madhya") || key.includes("मध्य")) {
       try {
         const districts = await District.find({
           $or: [
             { state: /madhya/i },
             { slug: /madhya-pradesh/i },
-            { name: /madhya/i },
+            { name: /madhya|मध्य/i },
           ],
         }).lean();
         const names = (districts || []).map((d) => d.name).filter(Boolean);
-        if (names.length) {
-          filter.district = { $in: names };
-        }
+        if (names.length) filter.district = { $in: names };
       } catch (err) {
-        console.error("Failed to expand madhya-pradesh districts", err);
+        console.error("Failed to expand MP districts", err);
       }
     } else {
-      const dval = String(req.query.district || req.query.state || "").trim();
+      const dval = String(districtParam || "").trim();
       if (dval) {
         const escD = dval.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&");
         filter.district = { $regex: `^${escD}$`, $options: "i" };
@@ -120,15 +82,17 @@ export async function listNews(req, res) {
     }
   }
 
+  // SEARCH
   if (req.query.q) {
-    const q = String(req.query.q).trim();
-    if (q.length > 0) {
-      filter.$or = filter.$or || [];
+    const q = String(req.query.q || "").trim();
+    if (q) {
       const re = new RegExp(q.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&"), "i");
+      filter.$or = filter.$or || [];
       filter.$or.push({ title: re }, { content: re });
     }
   }
 
+  // Authorization: reporters see own pending too; public sees only approved
   if (!req.user || req.user.role !== "owner") {
     if (req.user && req.user.role === "reporter") {
       filter.$or = [{ approved: true }, { author: req.user._id }];

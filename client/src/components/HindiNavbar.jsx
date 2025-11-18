@@ -1,6 +1,6 @@
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import logo from "../assets/logo.jpg";
-import { Search, Menu, X, User, ChevronDown } from "lucide-react";
+import { Search, Menu, X, User, ChevronDown, Tag, MapPin } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { motion, AnimatePresence } from "framer-motion";
@@ -8,10 +8,10 @@ import HeadlineMarquee from "./HeadlineMarquee.jsx";
 import { apiFetch } from "../api.js";
 
 // Define the custom primary color
-const PRIMARY_VIVID_RED = "#a61616ff"; // The requested background color
-const SECONDARY_TEAL = "#0a6358ff"; // Secondary accent color for links/buttons
+const PRIMARY_VIVID_RED = "#d40b0bff"; // The requested background color
+const SECONDARY_TEAL = "#14B8A6"; // Secondary accent color (Teal)
 
-// Custom Motion component for navigation links (retained for motion)
+// Custom Motion component for navigation links
 const NavItem = ({ to, children, className = "" }) => (
   <motion.div whileHover={{ scale: 1.05 }} transition={{ duration: 0.2 }}>
     <Link
@@ -25,6 +25,7 @@ const NavItem = ({ to, children, className = "" }) => (
 
 export default function HindiNavbar() {
   const [categories, setCategories] = useState([
+    // Default/Fallback data used before API load
     { key: "home", label: "होम" },
     { key: "bharat", label: "भारत" },
     { key: "madhya-pradesh", label: "मध्य प्रदेश" },
@@ -32,8 +33,6 @@ export default function HindiNavbar() {
     { key: "sports", label: "खेल" },
     { key: "entertainment", label: "मनोरंजन" },
     { key: "business", label: "व्यापार" },
-    // Removed 'politics' from the hard-coded fallback list so the owner-managed
-    // categories (from the server) remain the single source of truth.
     { key: "health", label: "स्वास्थ्य" },
     { key: "education", label: "शिक्षा" },
   ]);
@@ -45,133 +44,90 @@ export default function HindiNavbar() {
     { key: "gwalior", label: "ग्वालियर" },
     { key: "jabalpur", label: "जबलपुर" },
     { key: "satna", label: "सतना" },
-    { key: "rewa", label: "रीवा" },
-    { key: "hoshangabad", label: "होशंगाबाद" },
-    { key: "shivpuri", label: "शिवपुरी" },
-    { key: "sagar", label: "सागर" },
   ]);
 
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [districtsOpen, setDistrictsOpen] = useState(false); // desktop hover
-  const [mobileDistrictsOpen, setMobileDistrictsOpen] = useState(false); // mobile toggle
+  const [districtsOpen, setDistrictsOpen] = useState(false);
+  const [mobileDistrictsOpen, setMobileDistrictsOpen] = useState(false);
   const { user, logout, promptLogout } = useAuth() || {};
+
+  // Refs for DOM manipulation and focus management
   const navRef = useRef(null);
   const headerRef = useRef(null);
-  const [navHeight, setNavHeight] = useState(0);
-  const [isFixed, setIsFixed] = useState(false);
+  const mobileMenuRef = useRef(null);
+  const mobileToggleRef = useRef(null);
   const firstMenuLinkRef = useRef(null);
-  const navigate = useNavigate();
-  const [desktopSearch, setDesktopSearch] = useState("");
-  const [mobileSearch, setMobileSearch] = useState("");
-
-  const location = useLocation();
-
-  const submitSearch = (term) => {
-    const q = String(term || "").trim();
-    if (!q) return;
-    // Preserve existing category/district query params when searching
-    try {
-      const params = new URLSearchParams(location.search);
-      if (q) params.set("q", q);
-      // keep category and district if present
-      const qs = params.toString();
-      navigate(`/news${qs ? `?${qs}` : ""}`);
-    } catch {
-      // fallback
-      navigate(`/news?q=${encodeURIComponent(q)}`);
-    }
-    // close mobile search panel if open
-    setMobileSearchOpen(false);
-    setMobileMenuOpen(false);
-  };
-  // refs and state for accessibility of district dropdown
   const districtButtonRef = useRef(null);
   const districtMenuRefs = useRef([]);
   const districtWrapperRef = useRef(null);
 
-  // Close panels with Escape and focus management (Logic retained)
-  useEffect(() => {
-    const onKey = (e) => {
-      if (e.key === "Escape") {
-        setMobileSearchOpen(false);
-        setMobileMenuOpen(false);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  // Close district dropdown when clicking outside (desktop)
-  useEffect(() => {
-    function onDocClick(e) {
-      if (!districtsOpen) return;
-      const wrap = districtWrapperRef.current;
-      if (!wrap) return;
-      if (!wrap.contains(e.target)) {
-        setDistrictsOpen(false);
-      }
+  const [navHeight, setNavHeight] = useState(0);
+  const [headerHeight, setHeaderHeight] = useState(0);
+  const [isFixed, setIsFixed] = useState(false);
+  const [desktopSearch, setDesktopSearch] = useState("");
+  const [mobileSearch, setMobileSearch] = useState("");
+
+  // --- Helper Functions ---
+
+  const submitSearch = (term) => {
+    const q = String(term || "").trim();
+    if (!q) return;
+    try {
+      const params = new URLSearchParams(location.search);
+      if (q) params.set("q", q);
+      const qs = params.toString();
+      navigate(`/news${qs ? `?${qs}` : ""}`);
+    } catch {
+      navigate(`/news?q=${encodeURIComponent(q)}`);
     }
-    document.addEventListener("mousedown", onDocClick);
-    return () => document.removeEventListener("mousedown", onDocClick);
-  }, [districtsOpen]);
+    setMobileSearchOpen(false);
+    setMobileMenuOpen(false);
+  };
 
-  useEffect(() => {
-    if (mobileMenuOpen && firstMenuLinkRef.current) {
-      setTimeout(() => firstMenuLinkRef.current.focus(), 50);
-    }
-  }, [mobileMenuOpen]);
+  const toggleMobileSearch = () => {
+    setMobileMenuOpen(false);
+    setMobileSearchOpen((v) => !v);
+  };
+  const toggleMobileMenu = () => {
+    setMobileSearchOpen(false);
+    setMobileMenuOpen((v) => !v);
+  };
+  const closeMobilePanels = () => {
+    setMobileSearchOpen(false);
+    setMobileMenuOpen(false);
+  };
+  const dashboardLink = user
+    ? user.role === "owner"
+      ? "/owner"
+      : user.role === "reporter"
+      ? "/reporter"
+      : "/"
+    : "/";
 
-  // measure nav position and height and toggle fixed state on scroll
-  useEffect(() => {
-    function measure() {
-      if (!navRef.current) return;
-      const navRect = navRef.current.getBoundingClientRect();
-      setNavHeight(navRef.current.offsetHeight || navRect.height || 0);
-    }
+  // --- Effects ---
 
-    function onScroll() {
-      const hdrH = headerRef.current ? headerRef.current.offsetHeight : 0;
-      setIsFixed(window.scrollY >= hdrH);
-    }
-
-    // initial measure
-    measure();
-    // measure on resize
-    window.addEventListener("resize", measure);
-    // update fixed state on scroll
-    window.addEventListener("scroll", onScroll, { passive: true });
-
-    // also run on load in case user refreshed mid-page
-    onScroll();
-
-    return () => {
-      window.removeEventListener("resize", measure);
-      window.removeEventListener("scroll", onScroll);
-    };
-  }, []);
-
-  // Fetch categories and districts from the server (data-driven)
+  // 1. Initial Data Fetch (Categories & Districts)
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
         const cats = await apiFetch("/api/categories");
         if (mounted && Array.isArray(cats) && cats.length > 0) {
-          // Use category name as the key so links match the category value
-          // stored on News documents (we persist category by name).
+          // Map to use name as key for cleaner URLs
           setCategories(cats.map((c) => ({ key: c.name, label: c.name })));
         }
       } catch (err) {
-        // ignore and keep fallback categories
         console.warn("Failed to load categories", err.message || err);
       }
 
       try {
         const d = await apiFetch("/api/districts");
         if (mounted && Array.isArray(d) && d.length > 0) {
-          // Use district name as key so the query param matches the
-          // district value saved on news items (NewsForm uses district.name)
+          // Map to use name as key
           setMpDistricts(d.map((x) => ({ key: x.name, label: x.name })));
         }
       } catch (err) {
@@ -183,27 +139,84 @@ export default function HindiNavbar() {
     };
   }, []);
 
-  const toggleMobileSearch = () => {
-    setMobileMenuOpen(false);
-    setMobileSearchOpen((v) => !v);
-  };
-  const toggleMobileMenu = () => {
-    setMobileSearchOpen(false);
-    setMobileSearchOpen(false);
-    setMobileMenuOpen((v) => !v);
-  };
-  const closeMobilePanels = () => {
-    setMobileSearchOpen(false);
-    setMobileMenuOpen(false);
-  };
+  // 2. Accessibility/State Management (ESC key, Scroll Lock, Focus Trap)
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "Escape") {
+        closeMobilePanels();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
-  const dashboardLink = user
-    ? user.role === "owner"
-      ? "/owner"
-      : user.role === "reporter"
-      ? "/reporter"
-      : "/"
-    : "/";
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    if (mobileMenuOpen || mobileSearchOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = prev;
+    }
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [mobileMenuOpen, mobileSearchOpen]);
+
+  useEffect(() => {
+    if (mobileMenuOpen && mobileMenuRef.current) {
+      // Focus trap logic (retained for completeness)
+      const node = mobileMenuRef.current;
+      const focusableSelector =
+        'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])';
+      const focusable = Array.from(node.querySelectorAll(focusableSelector));
+      if (focusable.length) focusable[0].focus();
+
+      function onKey(e) {
+        /* ... focus trap logic ... */
+        if (e.key === "Escape") {
+          closeMobilePanels();
+          mobileToggleRef.current?.focus();
+          return;
+        }
+        if (e.key !== "Tab") return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+      document.addEventListener("keydown", onKey);
+      return () => document.removeEventListener("keydown", onKey);
+    }
+  }, [mobileMenuOpen]);
+
+  // 3. Fixed Header Logic (Scroll Detection)
+  useEffect(() => {
+    function measure() {
+      if (!navRef.current) return;
+      setNavHeight(navRef.current.offsetHeight);
+      if (headerRef.current) setHeaderHeight(headerRef.current.offsetHeight);
+    }
+
+    function onScroll() {
+      const hdrH = headerRef.current ? headerRef.current.offsetHeight : 0;
+      setIsFixed(window.scrollY >= hdrH);
+    }
+
+    measure();
+    window.addEventListener("resize", measure);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+
+    return () => {
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, []);
 
   return (
     <header ref={headerRef} className="relative w-full shadow-2xl z-50">
@@ -247,7 +260,7 @@ export default function HindiNavbar() {
               <motion.button
                 onClick={() => submitSearch(desktopSearch)}
                 className="text-white px-4 py-2 rounded-r-md transition duration-200 ease-in-out flex items-center justify-center text-sm"
-                style={{ backgroundColor: SECONDARY_TEAL }} // Use Teal for search button contrast
+                style={{ backgroundColor: SECONDARY_TEAL }} // Teal search button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
@@ -273,7 +286,7 @@ export default function HindiNavbar() {
                   to="/login"
                   aria-label="Login"
                   className="hidden sm:flex items-center text-white px-3 py-1.5 rounded-md text-sm font-medium transition duration-200 shadow-md"
-                  style={{ backgroundColor: SECONDARY_TEAL }} // Use Teal for login button contrast
+                  style={{ backgroundColor: SECONDARY_TEAL }} // Teal for login button contrast
                 >
                   <User className="h-4 w-4 mr-1" /> लॉग इन करें
                 </Link>
@@ -297,11 +310,12 @@ export default function HindiNavbar() {
               </motion.button>
 
               <motion.button
+                ref={mobileToggleRef}
                 onClick={toggleMobileMenu}
                 aria-expanded={mobileMenuOpen}
                 aria-label="Toggle menu"
-                className="p-2 rounded-full bg-white/20 text-white hover:bg-white/30 transition duration-200"
-                whileTap={{ scale: 0.9 }}
+                className="p-3 rounded-full bg-white/20 text-white hover:bg-white/30 transition duration-200"
+                whileTap={{ scale: 0.95 }}
               >
                 {mobileMenuOpen ? (
                   <X className="h-5 w-5" />
@@ -313,7 +327,6 @@ export default function HindiNavbar() {
           </div>
         </div>
       </div>
-      {/* Headline marquee will be shown below the category nav to keep header compact */}
 
       {/* Mobile search panel */}
       <AnimatePresence>
@@ -325,7 +338,7 @@ export default function HindiNavbar() {
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.3 }}
             className="lg:hidden absolute w-full border-b border-gray-700 overflow-hidden"
-            style={{ backgroundColor: PRIMARY_VIVID_RED }} // Use Vivid Red BG for consistency
+            style={{ backgroundColor: PRIMARY_VIVID_RED }}
             aria-hidden={!mobileSearchOpen}
           >
             <div className="px-4 py-3 flex items-center gap-2">
@@ -343,7 +356,7 @@ export default function HindiNavbar() {
               <motion.button
                 onClick={() => submitSearch(mobileSearch)}
                 className="text-white px-4 py-2 rounded-md transition duration-200"
-                style={{ backgroundColor: SECONDARY_TEAL }} // Teal search button
+                style={{ backgroundColor: SECONDARY_TEAL }}
                 whileHover={{ scale: 1.05 }}
               >
                 खोजें
@@ -358,23 +371,33 @@ export default function HindiNavbar() {
         {mobileMenuOpen && (
           <motion.div
             key="mobile-menu"
-            initial={{ opacity: 0, y: -20 }}
+            initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-            className="lg:hidden absolute w-full bg-white shadow-lg overflow-hidden"
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.22 }}
+            className="lg:hidden fixed left-0 right-0 z-50 bg-white shadow-lg max-h-[75vh] overflow-y-auto"
+            style={{ top: headerHeight }}
             aria-hidden={!mobileMenuOpen}
+            ref={mobileMenuRef}
           >
-            <div className="flex flex-col px-4 py-2">
-              {/* Mobile Home link at the top */}
-              <Link
-                to="/news"
-                className="w-full text-left text-white bg-[var(--primary)] px-4 py-2 rounded-md font-semibold mb-2"
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-white">
+              <div className="flex items-center gap-3">
+                <img
+                  src={logo}
+                  alt="logo"
+                  className="h-8 w-auto object-contain"
+                />
+                <div className="text-sm font-semibold">Menu</div>
+              </div>
+              <button
+                aria-label="Close menu"
+                className="p-2 rounded-md text-gray-700 hover:bg-gray-100"
                 onClick={closeMobilePanels}
-                role="menuitem"
               >
-                होम
-              </Link>
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="flex flex-col px-2 py-2">
               {categories.map((c, index) => {
                 if (c.hasDropdown) {
                   return (
@@ -396,6 +419,7 @@ export default function HindiNavbar() {
                             )}`}
                             className="block px-6 py-2 text-sm text-gray-700 hover:bg-gray-50 font-medium"
                             onClick={closeMobilePanels}
+                            tabIndex={-1}
                           >
                             मध्य प्रदेश — सभी जिले
                           </Link>
@@ -406,6 +430,7 @@ export default function HindiNavbar() {
                               to={`/news?district=${encodeURIComponent(d.key)}`}
                               className="block px-6 py-2 text-sm text-gray-700 hover:bg-gray-50"
                               onClick={closeMobilePanels}
+                              tabIndex={-1}
                             >
                               {d.label}
                             </Link>
@@ -425,7 +450,7 @@ export default function HindiNavbar() {
                         : `/news?category=${encodeURIComponent(c.key)}`
                     }
                     ref={index === 0 ? firstMenuLinkRef : undefined}
-                    className="text-gray-800 text-base font-medium py-2 border-b border-gray-100 hover:text-red-700 hover:bg-gray-50 transition duration-150"
+                    className="text-gray-800 text-base font-medium py-2 border-b border-gray-100 hover:text-red-700 hover:bg-gray-50 transition duration-150 px-4"
                     onClick={closeMobilePanels}
                     role="menuitem"
                     tabIndex={0}
@@ -437,7 +462,7 @@ export default function HindiNavbar() {
               {/* Static About link */}
               <Link
                 to="/about"
-                className="text-gray-800 text-base font-medium py-2 border-b border-gray-100 hover:text-red-700 hover:bg-gray-50 transition duration-150"
+                className="text-gray-800 text-base font-medium py-2 border-b border-gray-100 hover:text-red-700 hover:bg-gray-50 transition duration-150 px-4"
                 onClick={closeMobilePanels}
                 role="menuitem"
               >
@@ -447,7 +472,7 @@ export default function HindiNavbar() {
               {!user && (
                 <Link
                   to="/login"
-                  className="mt-2 text-base font-medium py-2 rounded-md transition duration-150 flex items-center"
+                  className="mt-2 text-base font-medium py-2 rounded-md transition duration-150 flex items-center px-4"
                   style={{ color: PRIMARY_VIVID_RED }} // Use primary red for mobile login button text
                   onClick={closeMobilePanels}
                   role="menuitem"
@@ -465,10 +490,9 @@ export default function HindiNavbar() {
                       console.warn("Logout failed", e);
                     }
                   }}
-                  className="mt-2 text-base font-medium py-2 rounded-md transition duration-150 flex items-center text-red-600"
+                  className="mt-2 text-base font-medium py-2 rounded-md transition duration-150 flex items-center text-red-600 px-4"
                   role="menuitem"
                 >
-                  {/* Simple text for logout on mobile */}
                   लॉग आउट
                 </button>
               )}
@@ -484,12 +508,12 @@ export default function HindiNavbar() {
           isFixed ? "fixed top-0 left-0 right-0 z-40" : "relative"
         } shadow-md bg-white border-b border-gray-200`}
       >
-        <div className="max-w-screen-xl mx-auto px-4 hidden lg:block">
-          <div className="flex items-center overflow-x-auto whitespace-nowrap py-2">
+        <div className="max-w-screen-xl mx-auto px-4 block">
+          <div className="flex items-center overflow-x-auto whitespace-nowrap py-2 no-scrollbar touch-scroll -mx-2 px-2">
             {/* Desktop Home button placed first to show all news */}
             <Link
               to="/news"
-              className="text-white text-sm font-semibold px-4 py-1 rounded-full transition duration-150 ease-in-out mx-1 tracking-wider"
+              className="text-white text-sm font-semibold px-4 py-1 rounded-full transition duration-150 ease-in-out mx-2 tracking-wider inline-flex items-center justify-center"
               style={{
                 backgroundColor: SECONDARY_TEAL,
               }}
@@ -498,7 +522,7 @@ export default function HindiNavbar() {
             >
               होम
             </Link>
-            {categories.map((c) => {
+            {categories.map((c, index) => {
               if (c.hasDropdown) {
                 return (
                   <div
@@ -551,11 +575,20 @@ export default function HindiNavbar() {
                         }
                         if (e.key === "Escape") {
                           setDistrictsOpen(false);
+                          districtButtonRef.current?.focus();
                         }
                       }}
+                      // Highlight active link with dark text and subtle gray background hover
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.backgroundColor =
+                          "rgba(0, 0, 0, 0.05)")
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.backgroundColor = "transparent")
+                      }
                     >
                       <span>{c.label}</span>
-                      <ChevronDown className="ml-2" />
+                      <ChevronDown className="ml-2 w-3 h-3" />
                     </button>
                     {districtsOpen && (
                       <div
@@ -625,23 +658,16 @@ export default function HindiNavbar() {
                       ? "/news"
                       : `/news?category=${encodeURIComponent(c.key)}`
                   }
-                  // Category links use dark text on white background
-                  className="text-gray-800 text-sm font-semibold px-4 py-1 rounded-full transition duration-150 ease-in-out mx-1 tracking-wider"
-                  style={{
-                    // Highlight the active/home link with the secondary accent (Teal)
-                    backgroundColor:
-                      c.key === "home" ? SECONDARY_TEAL : "transparent",
-                    color: c.key === "home" ? "white" : "black",
-                  }}
-                  onClick={closeMobilePanels}
+                  // Category links use dark text on white background, highlighted by hover
+                  className="text-gray-800 text-sm font-semibold px-4 py-1 rounded-full transition duration-150 ease-in-out mx-2 tracking-wider inline-flex items-center justify-center"
                   onMouseEnter={(e) =>
                     (e.currentTarget.style.backgroundColor =
-                      c.key === "home" ? SECONDARY_TEAL : "rgba(0, 0, 0, 0.05)")
-                  } // Subtle gray hover on non-home
+                      "rgba(0, 0, 0, 0.05)")
+                  } // Subtle gray hover
                   onMouseLeave={(e) =>
-                    (e.currentTarget.style.backgroundColor =
-                      c.key === "home" ? SECONDARY_TEAL : "transparent")
+                    (e.currentTarget.style.backgroundColor = "transparent")
                   } // Reset
+                  onClick={closeMobilePanels}
                 >
                   {c.label}
                 </Link>

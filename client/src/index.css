@@ -17,7 +17,6 @@
   body,
   #root {
     height: 100%;
-    overflow-x: hidden;
   }
 
   /* Use border-box everywhere to avoid width surprises */
@@ -34,7 +33,20 @@
   .max-w-6xl,
   .marquee-track {
     max-width: 100%;
-    overflow-x: hidden;
+    /* allow inner elements to scroll horizontally when needed */
+    overflow-x: visible;
+  }
+
+  /* Utility to hide scrollbars while keeping touch/pointer scrolling */
+  .no-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+  }
+  .touch-scroll {
+    -webkit-overflow-scrolling: touch;
   }
 
   /* Make headline label smaller on very small screens to avoid pushing width */

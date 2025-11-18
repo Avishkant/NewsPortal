@@ -13,8 +13,35 @@
 }
 
 @layer base {
-  html, body, #root {
+  html,
+  body,
+  #root {
     height: 100%;
+    overflow-x: hidden;
+  }
+
+  /* Use border-box everywhere to avoid width surprises */
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  /* Prevent layout elements from causing horizontal overflow */
+  header,
+  footer,
+  main,
+  .max-w-6xl,
+  .marquee-track {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  /* Make headline label smaller on very small screens to avoid pushing width */
+  @media (max-width: 480px) {
+    .headline-label {
+      min-width: 6rem;
+    }
   }
 
   body {
@@ -23,7 +50,8 @@
     /* ... other font settings ... */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+      "Helvetica Neue", Arial;
     line-height: 1.4;
     margin: 0;
   }
@@ -39,20 +67,21 @@
 
   /* small card used across the app */
   /* Base resets and app defaults */
-.card {
+  .card {
     background-color: var(--card); /* Light background */
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); /* Lighter shadow */
     border-radius: 0.75rem;
     padding: 1rem;
   }
-/* You also added a Tailwind utility override which conflicts: */
-.card {
-  @apply bg-slate-800 shadow-md rounded-lg p-4;
-}
+  /* You also added a Tailwind utility override which conflicts: */
+  .card {
+    @apply bg-slate-800 shadow-md rounded-lg p-4;
+  }
 }
 
 /* utility for subtle floating animation */
-.float-anim { animation: float 6s ease-in-out infinite; }
-
+.float-anim {
+  animation: float 6s ease-in-out infinite;
+}
 
 /* Base resets and app defaults */

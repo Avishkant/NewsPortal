@@ -35,7 +35,7 @@ export default function Header() {
 
       <header
         // Header BG uses the specified Vivid Red color
-        className="sticky top-0 z-50 text-white shadow-xl transition-all duration-300"
+        className="sticky top-0 z-50 text-white shadow-xl transition-all duration-300 overflow-x-hidden"
         style={{ backgroundColor: PRIMARY_VIVID_RED }}
       >
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">

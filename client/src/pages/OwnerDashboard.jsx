@@ -25,9 +25,20 @@ import {
   MapPin,
 } from "lucide-react";
 // ConfirmDialog handled globally via AuthContext
+import { useConfirm } from "../contexts/ConfirmContext.jsx";
 
 export default function OwnerDashboard() {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const promptConfirm = useConfirm();
   const { authFetch, user, logout, promptLogout } = useAuth() || {};
+  // keyboard shortcut: press 'm' to toggle mobile menu
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "m" || e.key === "M") setSidebarOpen((v) => !v);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   const [reporters, setReporters] = useState([]);
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [reporterEdit, setReporterEdit] = useState(null);
@@ -174,7 +185,11 @@ export default function OwnerDashboard() {
     }
   };
   const removeReporter = async (id) => {
-    if (!confirm("Remove this reporter?")) return;
+    const ok = await promptConfirm({
+      title: "Remove reporter",
+      message: "Remove this reporter?",
+    });
+    if (!ok) return;
     try {
       await authFetch(`/api/reporters/${id}`, { method: "DELETE" });
       await loadReporters();
@@ -230,7 +245,11 @@ export default function OwnerDashboard() {
   // --- News Management (Unchanged logic, minor style changes) ---
   const removeNews = async (id) => {
     if (!id) return;
-    if (!confirm("Delete this article?")) return;
+    const ok = await promptConfirm({
+      title: "Delete article",
+      message: "Delete this article?",
+    });
+    if (!ok) return;
     try {
       await authFetch(`/api/news/${id}`, { method: "DELETE" });
       await loadNews();
@@ -338,7 +357,11 @@ export default function OwnerDashboard() {
   const startEditCategory = (c) => openCategoryModal("edit", c);
   const deleteCategory = async (id) => {
     if (!id) return;
-    if (!confirm("Delete this category?")) return;
+    const ok = await promptConfirm({
+      title: "Delete category",
+      message: "Delete this category?",
+    });
+    if (!ok) return;
     try {
       await authFetch(`/api/categories/${id}`, { method: "DELETE" });
       await loadCategories();
@@ -367,7 +390,11 @@ export default function OwnerDashboard() {
 
   const deleteDistrict = async (id) => {
     if (!id) return;
-    if (!confirm("Delete this district?")) return;
+    const ok = await promptConfirm({
+      title: "Delete district",
+      message: "Delete this district?",
+    });
+    if (!ok) return;
     try {
       await authFetch(`/api/districts/${id}`, { method: "DELETE" });
       await loadDistricts();
@@ -563,7 +590,11 @@ export default function OwnerDashboard() {
     const confirmMsg = approve
       ? "Approve and permanently delete this article?"
       : "Reject deletion request for this article?";
-    if (!confirm(confirmMsg)) return;
+    const ok = await promptConfirm({
+      title: approve ? "Approve and delete" : "Reject deletion request",
+      message: confirmMsg,
+    });
+    if (!ok) return;
     try {
       await authFetch(`/api/news/${id}/handle-deletion`, {
         method: "PUT",
@@ -682,13 +713,42 @@ export default function OwnerDashboard() {
           },
         ]}
         // Apply classes for the light theme sidebar
-        className="hidden lg:flex w-64 bg-white shadow-lg flex-shrink-0"
+        className="w-64 bg-white shadow-lg flex-shrink-0"
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
+
+      {/* Mobile top bar: hamburger to open sidebar */}
+      <div className="lg:hidden fixed top-4 left-4 z-50">
+        <button
+          aria-label="Open menu"
+          className="p-2 rounded-md bg-white shadow-md"
+          onClick={() => setSidebarOpen(true)}
+        >
+          <Menu className="w-5 h-5 text-gray-800" />
+        </button>
+      </div>
 
       {/* Main Content Area - Subtle light gray background */}
       <ErrorBoundary>
         <main className="flex-1 p-4 lg:p-8 bg-gray-50">
-          {/* Mobile menu placeholder */}
+          {/* Mobile header (hamburger is fixed) */}
+          <div className="lg:hidden flex items-center justify-between mb-4">
+            <h1 className="text-xl font-bold text-gray-900">
+              📰 Owner Dashboard
+            </h1>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setActiveTab("create");
+                  setEditingNews({ category: "" });
+                }}
+                className="px-3 py-1 bg-[var(--primary)] text-white rounded text-sm"
+              >
+                Create
+              </button>
+            </div>
+          </div>
 
           <h1 className="hidden lg:block text-3xl font-bold mb-6 text-gray-900">
             📰 Owner Dashboard

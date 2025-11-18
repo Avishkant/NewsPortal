@@ -16,7 +16,9 @@ import {
   AlertTriangle,
   CheckCircle,
   Clock,
+  Menu,
 } from "lucide-react";
+import { useConfirm } from "../contexts/ConfirmContext.jsx";
 
 // --- Custom Components ---
 
@@ -64,7 +66,17 @@ const StatusPill = ({ status, approved }) => {
 };
 
 export default function ReporterDashboard() {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const { authFetch, user, logout, promptLogout } = useAuth() || {};
+  const promptConfirm = useConfirm();
+  // keyboard shortcut: press 'm' to toggle mobile menu
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === "m" || e.key === "M") setSidebarOpen((v) => !v);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   const { showToast } = useToast();
   const [news, setNews] = useState([]);
   const [editing, setEditing] = useState(null);
@@ -136,12 +148,12 @@ export default function ReporterDashboard() {
   // remove or request deletion for a news item
   const remove = async (id, isApproved) => {
     if (isApproved) {
-      if (
-        !confirm(
-          "This article is APPROVED. Request deletion (owner will review)?"
-        )
-      )
-        return;
+      const ok = await promptConfirm({
+        title: "Request deletion",
+        message:
+          "This article is APPROVED. Request deletion (owner will review)?",
+      });
+      if (!ok) return;
       try {
         const resp = await authFetch(`/api/news/${id}/request-delete`, {
           method: "POST",
@@ -158,7 +170,11 @@ export default function ReporterDashboard() {
       return;
     }
 
-    if (!confirm("Delete this news item (currently pending/draft)?")) return;
+    const ok = await promptConfirm({
+      title: "Delete news",
+      message: "Delete this news item (currently pending/draft)?",
+    });
+    if (!ok) return;
     try {
       await authFetch(`/api/news/${id}`, { method: "DELETE" });
       showToast({ type: "success", message: "News deleted" });
@@ -215,7 +231,20 @@ export default function ReporterDashboard() {
             isBottom: true,
           },
         ]}
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
+
+      {/* Mobile hamburger to open sidebar */}
+      <div className="lg:hidden fixed top-4 left-4 z-50">
+        <button
+          aria-label="Open menu"
+          className="p-2 rounded-md bg-white shadow-md"
+          onClick={() => setSidebarOpen(true)}
+        >
+          <Menu className="w-5 h-5 text-gray-800" />
+        </button>
+      </div>
 
       <main className="flex-1 p-8">
         {/* Main Header */}

@@ -3,7 +3,7 @@ import logoSrc from "../assets/logo.jpg";
 
 export default function Footer() {
   return (
-    <footer className="bg-gray-900 text-gray-100 border-t border-gray-800 mt-12">
+    <footer className="bg-gray-900 text-gray-100 border-t border-gray-800 mt-12 overflow-x-hidden">
       <div className="max-w-6xl mx-auto px-4 py-8 sm:py-12 flex flex-col md:flex-row md:items-start md:justify-between gap-8">
         <div className="flex-1 min-w-0">
           <Link to="/" className="inline-block mb-3 flex items-center">
@@ -84,8 +84,7 @@ export default function Footer() {
       <div className="border-t border-gray-800 bg-gray-800">
         <div className="max-w-6xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between text-sm text-gray-400">
           <div>
-            © {new Date().getFullYear()} MP Network 10
-            News — All rights
+            © {new Date().getFullYear()} MP Network 10 News — All rights
             reserved.
           </div>
           <div className="mt-2 sm:mt-0">Made with ❤️ by ThinkCraftAI</div>

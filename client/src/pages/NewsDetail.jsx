@@ -5,6 +5,7 @@ import { useAuth } from "../contexts/AuthContext.jsx";
 import { useToast } from "../contexts/ToastContext.jsx";
 import { motion } from "framer-motion";
 import { Share2, Edit, Trash2, Eye, MapPin } from "lucide-react";
+import { useConfirm } from "../contexts/ConfirmContext.jsx";
 
 // --- Main Component ---
 
@@ -15,6 +16,7 @@ export default function NewsDetail() {
   const { showToast } = useToast();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const promptConfirm = useConfirm();
 
   useEffect(() => {
     setLoading(true);
@@ -28,7 +30,11 @@ export default function NewsDetail() {
   }, [id]);
 
   const remove = async () => {
-    if (!confirm("Are you sure you want to delete this news item?")) return;
+    const ok = await promptConfirm({
+      title: "Delete news",
+      message: "Are you sure you want to delete this news item?",
+    });
+    if (!ok) return;
     try {
       await apiFetch(`/api/news/${id}`, { method: "DELETE", token });
       showToast({ type: "success", message: "News deleted successfully." });

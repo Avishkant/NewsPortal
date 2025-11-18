@@ -29,7 +29,7 @@ export default function About() {
                 Asha Verma
               </h2>
               <p className="text-sm text-gray-600">Editor-in-Chief</p>
-              <p className="text-sm text-gray-500 mt-3">editor@example.com</p>
+              <p className="text-sm text-gray-500 mt-3">mpnetwork10news@gmail.com</p>
               <div className="flex gap-3 mt-4">
                 <a
                   href="https://twitter.com"
@@ -81,8 +81,8 @@ export default function About() {
               <p className="text-gray-700 mb-4 text-sm md:text-base">
                 Want to send a tip, suggest a story, or ask about corrections?
                 Email our editorial desk at{" "}
-                <a className="text-blue-600" href="mailto:editor@example.com">
-                  editor@example.com
+                <a className="text-blue-600" href="mailto:mpnetwork10news@gmail.com">
+                  mpnetwork10news@gmail.com
                 </a>
                 .
               </p>

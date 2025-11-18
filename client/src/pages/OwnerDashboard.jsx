@@ -24,9 +24,10 @@ import {
   Menu,
   MapPin,
 } from "lucide-react";
+// ConfirmDialog handled globally via AuthContext
 
 export default function OwnerDashboard() {
-  const { authFetch, user, logout } = useAuth() || {};
+  const { authFetch, user, logout, promptLogout } = useAuth() || {};
   const [reporters, setReporters] = useState([]);
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [reporterEdit, setReporterEdit] = useState(null);
@@ -41,6 +42,7 @@ export default function OwnerDashboard() {
   const [editingDistrict, setEditingDistrict] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmOpts, setConfirmOpts] = useState(null);
+  // logout confirmation handled by AuthContext.promptLogout()
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [categoryModalMode, setCategoryModalMode] = useState("create");
   const [districtModalOpen, setDistrictModalOpen] = useState(false);
@@ -667,7 +669,14 @@ export default function OwnerDashboard() {
           {
             key: "logout",
             label: "Logout",
-            onClick: () => logout && logout(),
+            onClick: () => {
+              try {
+                if (promptLogout) promptLogout();
+                else if (logout) logout();
+              } catch (e) {
+                console.warn("Logout failed", e);
+              }
+            },
             icon: <LogOut className="h-5 w-5" />,
             isDanger: true,
           },
@@ -1657,6 +1666,7 @@ export default function OwnerDashboard() {
           )}
         </main>
       </ErrorBoundary>
+      {/* Global ConfirmDialog handled by AuthContext.promptLogout() */}
     </div>
   );
 }

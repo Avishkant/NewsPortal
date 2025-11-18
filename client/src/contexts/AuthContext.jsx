@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { apiFetch } from "../api.js";
 import { useNavigate } from "react-router-dom";
+import ConfirmDialog from "../components/ConfirmDialog.jsx";
 
 const AuthContext = createContext(null);
 
@@ -47,6 +48,20 @@ export function AuthProvider({ children }) {
     navigate("/login");
   };
 
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+  const promptLogout = () => setShowLogoutConfirm(true);
+
+  const handleConfirmLogout = () => {
+    try {
+      logout();
+    } finally {
+      setShowLogoutConfirm(false);
+    }
+  };
+
+  const handleCancelLogout = () => setShowLogoutConfirm(false);
+
   // Read token from localStorage at call time to avoid stale closure values
   const authFetch = (path, opts = {}) => {
     const currentToken = token || localStorage.getItem("token");
@@ -54,8 +69,19 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, authFetch }}>
+    <AuthContext.Provider
+      value={{ user, token, login, logout, authFetch, promptLogout }}
+    >
       {children}
+      <ConfirmDialog
+        open={showLogoutConfirm}
+        title="Confirm Logout"
+        message="Are you sure you want to log out?"
+        confirmLabel="Log out"
+        cancelLabel="Cancel"
+        onConfirm={handleConfirmLogout}
+        onCancel={handleCancelLogout}
+      />
     </AuthContext.Provider>
   );
 }

@@ -64,7 +64,7 @@ const StatusPill = ({ status, approved }) => {
 };
 
 export default function ReporterDashboard() {
-  const { authFetch, user, logout } = useAuth() || {};
+  const { authFetch, user, logout, promptLogout } = useAuth() || {};
   const { showToast } = useToast();
   const [news, setNews] = useState([]);
   const [editing, setEditing] = useState(null);
@@ -93,6 +93,8 @@ export default function ReporterDashboard() {
       console.error("Failed to load news", err);
     }
   };
+
+  // logout confirmation handled centrally via AuthContext.promptLogout()
 
   useEffect(() => {
     if (!user) return;
@@ -124,12 +126,14 @@ export default function ReporterDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  // called after the form saves a news item
   const onSaved = () => {
     showToast({ type: "success", message: "News saved" });
     setEditing(null);
     load();
   };
 
+  // remove or request deletion for a news item
   const remove = async (id, isApproved) => {
     if (isApproved) {
       if (
@@ -142,7 +146,6 @@ export default function ReporterDashboard() {
         const resp = await authFetch(`/api/news/${id}/request-delete`, {
           method: "POST",
         });
-        // server returns { message: 'Deletion requested; owner will review' }
         showToast({
           type: "success",
           message: resp?.message || "Deletion requested",
@@ -200,7 +203,14 @@ export default function ReporterDashboard() {
           {
             key: "logout",
             label: "Logout",
-            onClick: () => logout && logout(),
+            onClick: () => {
+              try {
+                if (promptLogout) promptLogout();
+                else if (logout) logout();
+              } catch (e) {
+                console.warn("Logout failed", e);
+              }
+            },
             icon: <LogOut className="h-4 w-4" />,
             isBottom: true,
           },
@@ -280,6 +290,7 @@ export default function ReporterDashboard() {
                   />
                 </Suspense>
               </ErrorBoundary>
+              {/* Global ConfirmDialog handled by AuthContext.promptLogout() */}
             </motion.div>
           )}
         </AnimatePresence>

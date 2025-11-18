@@ -55,12 +55,12 @@ export default function HindiNavbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [districtsOpen, setDistrictsOpen] = useState(false); // desktop hover
   const [mobileDistrictsOpen, setMobileDistrictsOpen] = useState(false); // mobile toggle
+  const { user, logout, promptLogout } = useAuth() || {};
   const navRef = useRef(null);
   const headerRef = useRef(null);
   const [navHeight, setNavHeight] = useState(0);
   const [isFixed, setIsFixed] = useState(false);
   const firstMenuLinkRef = useRef(null);
-  const { user, logout } = useAuth() || {};
   const navigate = useNavigate();
   const [desktopSearch, setDesktopSearch] = useState("");
   const [mobileSearch, setMobileSearch] = useState("");
@@ -459,12 +459,11 @@ export default function HindiNavbar() {
                 <button
                   onClick={() => {
                     try {
-                      if (logout) logout();
+                      if (promptLogout) promptLogout();
+                      else if (logout) logout();
                     } catch (e) {
                       console.warn("Logout failed", e);
                     }
-                    closeMobilePanels();
-                    navigate("/");
                   }}
                   className="mt-2 text-base font-medium py-2 rounded-md transition duration-150 flex items-center text-red-600"
                   role="menuitem"
@@ -663,6 +662,7 @@ export default function HindiNavbar() {
       {isFixed && <div style={{ height: navHeight }} aria-hidden />}
       {/* render marquee below the category nav so it appears under the navbar */}
       <HeadlineMarquee speed={22} />
+      {/* Global ConfirmDialog handled by AuthContext.promptLogout() */}
     </header>
   );
 }

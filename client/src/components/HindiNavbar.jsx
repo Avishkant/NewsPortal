@@ -219,7 +219,7 @@ export default function HindiNavbar() {
   }, []);
 
   return (
-    <header ref={headerRef} className="relative w-full shadow-2xl z-50">
+    <header ref={headerRef} className="relative w-full shadow-2xl z-50 lg:z-60">
       {/* 🚀 Top Strip: Logo, Search, and Auth Status - Uses Vivid Red */}
       <div
         className="border-b border-white/20"
@@ -505,7 +505,7 @@ export default function HindiNavbar() {
       <nav
         ref={navRef}
         className={`${
-          isFixed ? "fixed top-0 left-0 right-0 z-40" : "relative"
+          isFixed ? "fixed top-0 left-0 right-0 z-60" : "relative"
         } shadow-md bg-white border-b border-gray-200`}
       >
         <div className="max-w-screen-xl mx-auto px-4 block">

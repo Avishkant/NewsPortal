@@ -28,6 +28,15 @@ export default function HeadlineMarquee({
     } catch {
       prefersReduced.current = false;
     }
+
+    // ensure track is visually reset on mount to avoid being off-screen
+    if (trackRef.current) {
+      try {
+        trackRef.current.style.transform = `translateX(0px)`;
+      } catch (e) {
+        /* ignore */
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -141,18 +150,30 @@ export default function HeadlineMarquee({
       }
 
       const el = trackRef.current;
-      // measure width (total width of repeated content)
+      // measure width (total width of the rendered repeated content)
       const total = el.scrollWidth || measuredWidth.current || 0;
-      // half is one copy width because we duplicate items
-      const half = total / 2 || 0;
-      if (half === 0) {
+      // determine how many repeated sets are present so we can compute
+      // the width of a single logical copy (unitWidth). We cannot assume
+      // it's exactly 2 copies anymore because displayItems may repeat
+      // items 3x or 8x when there are few headlines.
+      let unitWidth = 0;
+      try {
+        const childCount = el.children ? el.children.length : 0;
+        const origCount = items && items.length ? items.length : 1;
+        const copies =
+          origCount > 0 ? Math.max(1, Math.round(childCount / origCount)) : 1;
+        unitWidth = copies > 0 ? total / copies : total;
+      } catch (e) {
+        unitWidth = total;
+      }
+      if (!unitWidth) {
         animRef.current = requestAnimationFrame(step);
         return;
       }
 
       // duration (seconds for a full loop) - keep previous semantics
       const duration = Math.max(8, speed);
-      const pxPerSec = half / duration;
+      const pxPerSec = unitWidth / duration;
 
       const now = performance.now();
       if (!posRef.current.__last) posRef.current.__last = now;
@@ -162,8 +183,8 @@ export default function HeadlineMarquee({
       let pos = posRef.current.value || 0;
       pos -= pxPerSec * dt;
       // wrap around keeping continuity; handle large negative offsets (e.g., after tab inactive)
-      while (pos <= -half) pos += half;
-      while (pos > 0) pos -= half;
+      while (pos <= -unitWidth) pos += unitWidth;
+      while (pos > 0) pos -= unitWidth;
       posRef.current.value = pos;
       // apply transform
       el.style.transform = `translateX(${pos}px)`;
@@ -176,7 +197,28 @@ export default function HeadlineMarquee({
     posRef.current.value = 0;
     posRef.current.__last = null;
     stepRef.current = step;
-    animRef.current = requestAnimationFrame(stepRef.current);
+    // reset visual transform to avoid the track being stuck at a negative
+    // offset when items update. Measure the track after a paint so unit
+    // width calculations are accurate.
+    if (trackRef.current) {
+      try {
+        trackRef.current.style.transform = `translateX(0px)`;
+      } catch (e) {
+        /* ignore DOM access errors */
+      }
+      // measure on next frame
+      requestAnimationFrame(() => {
+        try {
+          measuredWidth.current = trackRef.current.scrollWidth || 0;
+        } catch (e) {
+          measuredWidth.current = 0;
+        }
+        // start the animation loop after measurement
+        animRef.current = requestAnimationFrame(stepRef.current);
+      });
+    } else {
+      animRef.current = requestAnimationFrame(stepRef.current);
+    }
 
     return () => {
       if (animRef.current) cancelAnimationFrame(animRef.current);
@@ -212,6 +254,18 @@ export default function HeadlineMarquee({
 
   const duration = Math.max(8, speed); // seconds for a full loop (kept for semantic parity)
 
+  // Create displayItems that ensure the marquee track is long enough
+  // even when there are very few headlines. This prevents the single
+  // headline from being scrolled completely out of view and never
+  // returning.
+  const displayItems = (() => {
+    if (!items || items.length === 0) return [];
+    if (items.length === 1) return Array(8).fill(items[0]);
+    // For all other cases render exactly two copies of the sequence.
+    // This makes the unitWidth calculation stable and ensures a seamless loop.
+    return [...items, ...items];
+  })();
+
   const wrapperClass = `${
     stickyBelowNav ? "sticky top-[36px] z-40" : ""
   } w-full bg-white border-b border-gray-200`;
@@ -234,7 +288,6 @@ export default function HeadlineMarquee({
               70% { transform: scale(2.2); opacity: 0; }
               100% { transform: scale(2.4); opacity: 0; }
             }
-            .headline-label { min-width: 11rem; }
             .marquee-track { display: inline-flex; align-items: center; }
           `}</style>
 
@@ -290,15 +343,17 @@ export default function HeadlineMarquee({
                   willChange: "transform",
                   gap: "3rem",
                   whiteSpace: "nowrap",
+                  minWidth: "max-content",
                 }}
               >
-                {/* content repeated twice for infinite effect */}
-                {[...items, ...items].map((it, idx) => (
+                {/* render the prepared displayItems to guarantee sufficient length */}
+                {displayItems.map((it, idx) => (
                   <Link
-                    key={`${it._id}-${idx}`}
-                    to={`/news/${it._id}`}
+                    key={`${it._id || idx}-${idx}`}
+                    to={it._id ? `/news/${it._id}` : "#"}
                     title={it.title}
                     className="inline-block text-slate-800 font-medium px-4 py-1 hover:shadow-md transition-transform transform hover:-translate-y-0.5 whitespace-nowrap"
+                    style={{ marginRight: "3rem", display: "inline-block" }}
                   >
                     {it.title}
                   </Link>

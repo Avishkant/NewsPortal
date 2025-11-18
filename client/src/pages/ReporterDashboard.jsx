@@ -75,7 +75,12 @@ export default function ReporterDashboard() {
       if (e.key === "m" || e.key === "M") setSidebarOpen((v) => !v);
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    const onToggle = () => setSidebarOpen((v) => !v);
+    window.addEventListener("toggleSidebar", onToggle);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("toggleSidebar", onToggle);
+    };
   }, []);
   const { showToast } = useToast();
   const [news, setNews] = useState([]);
@@ -235,16 +240,7 @@ export default function ReporterDashboard() {
         onClose={() => setSidebarOpen(false)}
       />
 
-      {/* Mobile hamburger to open sidebar */}
-      <div className="lg:hidden fixed top-4 left-4 z-50">
-        <button
-          aria-label="Open menu"
-          className="p-2 rounded-md bg-white shadow-md"
-          onClick={() => setSidebarOpen(true)}
-        >
-          <Menu className="w-5 h-5 text-gray-800" />
-        </button>
-      </div>
+      {/* Mobile hamburger removed — header button controls the sidebar now */}
 
       <main className="flex-1 p-8">
         {/* Main Header */}

@@ -311,9 +311,22 @@ export default function HindiNavbar() {
 
               <motion.button
                 ref={mobileToggleRef}
-                onClick={toggleMobileMenu}
+                onClick={() => {
+                  if (
+                    user &&
+                    (user.role === "owner" || user.role === "reporter")
+                  ) {
+                    window.dispatchEvent(new CustomEvent("toggleSidebar"));
+                  } else {
+                    toggleMobileMenu();
+                  }
+                }}
                 aria-expanded={mobileMenuOpen}
-                aria-label="Toggle menu"
+                aria-label={
+                  user && (user.role === "owner" || user.role === "reporter")
+                    ? "Toggle dashboard menu"
+                    : "Toggle menu"
+                }
                 className="p-3 rounded-full bg-white/20 text-white hover:bg-white/30 transition duration-200"
                 whileTap={{ scale: 0.95 }}
               >
@@ -522,7 +535,7 @@ export default function HindiNavbar() {
             >
               होम
             </Link>
-            {categories.map((c, index) => {
+            {categories.map((c) => {
               if (c.hasDropdown) {
                 return (
                   <div

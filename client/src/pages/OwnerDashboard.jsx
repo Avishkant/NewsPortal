@@ -37,7 +37,12 @@ export default function OwnerDashboard() {
       if (e.key === "m" || e.key === "M") setSidebarOpen((v) => !v);
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    const onToggle = () => setSidebarOpen((v) => !v);
+    window.addEventListener("toggleSidebar", onToggle);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("toggleSidebar", onToggle);
+    };
   }, []);
   const [reporters, setReporters] = useState([]);
   const [form, setForm] = useState({ name: "", email: "", password: "" });
@@ -718,16 +723,7 @@ export default function OwnerDashboard() {
         onClose={() => setSidebarOpen(false)}
       />
 
-      {/* Mobile top bar: hamburger to open sidebar */}
-      <div className="lg:hidden fixed top-4 left-4 z-50">
-        <button
-          aria-label="Open menu"
-          className="p-2 rounded-md bg-white shadow-md"
-          onClick={() => setSidebarOpen(true)}
-        >
-          <Menu className="w-5 h-5 text-gray-800" />
-        </button>
-      </div>
+      {/* Mobile top bar: hamburger removed — header button controls sidebar now */}
 
       {/* Main Content Area - Subtle light gray background */}
       <ErrorBoundary>

@@ -67,7 +67,7 @@ export default function Sidebar({
     <>
       {/* Overlay for mobile when sidebar open */}
       <div
-        className={`fixed inset-0 bg-black/40 z-40 transition-opacity lg:hidden ${
+        className={`fixed inset-0 bg-black/40 z-50 transition-opacity lg:hidden ${
           open
             ? "opacity-100 pointer-events-auto"
             : "opacity-0 pointer-events-none"
@@ -78,7 +78,7 @@ export default function Sidebar({
 
       <aside
         className={`
-          fixed z-50 top-0 left-0 h-full w-64 bg-white border-r border-gray-200 p-4 flex flex-col shadow-lg transition-transform duration-300
+          fixed z-60 lg:z-30 top-0 left-0 h-full w-64 bg-white border-r border-gray-200 p-4 flex flex-col shadow-lg transition-transform duration-300
           transform
           ${open ? "translate-x-0" : "-translate-x-full"}
           lg:translate-x-0 lg:static lg:shadow-none lg:w-64 lg:flex
@@ -125,7 +125,17 @@ export default function Sidebar({
                 type="button"
                 onClick={(e) => {
                   e.preventDefault();
-                  it.onClick && it.onClick();
+                  try {
+                    it.onClick && it.onClick();
+                  } catch (err) {
+                    console.warn("Sidebar item handler error", err);
+                  }
+                  // Close the sidebar on item click (useful for mobile/hamburger behavior)
+                  try {
+                    onClose && onClose();
+                  } catch (err) {
+                    /* ignore */
+                  }
                 }}
                 // Motion Props for interaction effects
                 whileHover={{

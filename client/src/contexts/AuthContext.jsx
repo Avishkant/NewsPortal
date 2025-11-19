@@ -27,19 +27,25 @@ export function AuthProvider({ children }) {
   }, [user]);
 
   const login = async (email, password) => {
-    const res = await apiFetch("/api/auth/login", {
-      method: "POST",
-      body: { email, password },
-    });
-    if (res?.token) {
-      setToken(res.token);
-      setUser(res.user);
-      // redirect based on role
-      if (res.user.role === "owner") navigate("/owner");
-      else navigate("/reporter");
-      return { ok: true };
+    try {
+      const res = await apiFetch("/api/auth/login", {
+        method: "POST",
+        body: { email, password },
+      });
+      if (res?.token) {
+        setToken(res.token);
+        setUser(res.user);
+        // redirect based on role
+        if (res.user.role === "owner") navigate("/owner");
+        else navigate("/reporter");
+        return { ok: true };
+      }
+      return { ok: false, error: res };
+    } catch (err) {
+      // apiFetch throws on non-2xx responses; normalize the error for callers
+      const message = err?.message || "Authentication failed";
+      return { ok: false, error: message };
     }
-    return { ok: false, error: res };
   };
 
   const logout = () => {

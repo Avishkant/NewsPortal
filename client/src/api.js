@@ -13,7 +13,13 @@ export async function apiFetch(
 
   let res;
   try {
-    res = await fetch(`${API_BASE}${path}`, opts);
+    // Build the full URL in a robust way to avoid accidental double-slash
+    // issues when `API_BASE` may end with a trailing slash and `path`
+    // begins with a leading slash. The URL constructor normalizes the
+    // resulting pathname (e.g. both "https://host/" + "/api/news" and
+    // "https://host" + "api/news" resolve correctly).
+    const url = new URL(path, API_BASE).toString();
+    res = await fetch(url, opts);
   } catch (err) {
     // Network-level error (server not reachable, DNS, CORS preflight failed, etc.)
     const msg = `Network request failed to ${API_BASE}${path}: ${err.message}`;

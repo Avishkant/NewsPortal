@@ -123,6 +123,37 @@ export default function NewsForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quill]);
 
+  // Focus and scroll editor into view on mobile when Quill initializes
+  useEffect(() => {
+    if (!quill) return;
+    try {
+      const isMobile =
+        typeof window !== "undefined" && window.innerWidth <= 768;
+      if (isMobile) {
+        // Give the editor a brief moment to render before focusing
+        setTimeout(() => {
+          try {
+            quill.focus();
+            if (
+              quillRef &&
+              quillRef.current &&
+              quillRef.current.scrollIntoView
+            ) {
+              quillRef.current.scrollIntoView({
+                behavior: "smooth",
+                block: "center",
+              });
+            }
+          } catch (e) {
+            /* ignore focus errors */
+          }
+        }, 120);
+      }
+    } catch (e) {
+      /* ignore */
+    }
+  }, [quill, quillRef]);
+
   // --- Image Upload Logic (Unchanged, but uses featureFileRef for cleanup) ---
   const handleFile = (e, insertToEditor = false) => {
     const file = e.target.files?.[0];

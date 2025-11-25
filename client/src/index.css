@@ -97,3 +97,16 @@
 }
 
 /* Base resets and app defaults */
+
+/* Quill editor toolbar improvements for mobile */
+.quill-editor-container .ql-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  background: #f9fafb; /* match tailwind gray-50 */
+}
+
+.quill-editor-container .ql-container {
+  background: white;
+  z-index: 10;
+}

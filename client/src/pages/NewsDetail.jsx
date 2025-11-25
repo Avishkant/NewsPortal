@@ -83,15 +83,18 @@ export default function NewsDetail() {
                 <MapPin className="h-3 w-3" /> {item.districtName}
               </span>
             )}
-            <span
-              className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                isApproved
-                  ? "bg-green-100 text-green-700"
-                  : "bg-yellow-100 text-yellow-700"
-              }`}
-            >
-              {isApproved ? "Approved" : "Pending"}
-            </span>
+            {/** Only show approval status to owners/reporters (public users already see only approved articles) */}
+            {user && (user.role === "owner" || user.role === "reporter") && (
+              <span
+                className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                  isApproved
+                    ? "bg-green-100 text-green-700"
+                    : "bg-yellow-100 text-yellow-700"
+                }`}
+              >
+                {isApproved ? "Approved" : "Pending"}
+              </span>
+            )}
           </div>
 
           {/* Featured Image */}

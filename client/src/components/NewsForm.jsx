@@ -547,7 +547,15 @@ export default function NewsForm({
         {/* Responsive heights: smaller on mobile, taller on desktop for comfortable editing */}
         <div
           ref={quillRef}
-          className="quill-editor-container min-h-[250px] md:min-h-[400px]"
+          className="quill-editor-container min-h-[250px] md:min-h-[400px] bg-white"
+          tabIndex={0}
+          onClick={() => {
+            try {
+              if (quill && typeof quill.focus === "function") quill.focus();
+            } catch (err) {
+              // ignore
+            }
+          }}
         />
         <input
           ref={hiddenFileRef}

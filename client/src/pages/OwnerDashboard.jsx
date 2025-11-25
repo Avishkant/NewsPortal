@@ -1,4 +1,5 @@
 import { useEffect, useState, lazy, Suspense } from "react";
+import { useLocation } from "react-router-dom";
 import { Link, useNavigate } from "react-router-dom";
 import ErrorBoundary from "../components/ErrorBoundary.jsx";
 import { apiFetch } from "../api.js";
@@ -68,6 +69,7 @@ export default function OwnerDashboard() {
   const [filterStatus, setFilterStatus] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const navigate = useNavigate();
+  const location = useLocation();
 
   // --- Utility Loaders (Unchanged) ---
   const loadReporters = async () => {
@@ -138,6 +140,36 @@ export default function OwnerDashboard() {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // If the owner navigates here with ?editing=<id>, load that article into the inline editor
+  useEffect(() => {
+    const sp = new URLSearchParams(location.search || "");
+    const editId = sp.get("editing");
+    if (!editId) return;
+    // Only owners may use this flow
+    if (!user || user.role !== "owner") return;
+    (async () => {
+      try {
+        const resp = await authFetch(`/api/news/${editId}`);
+        if (resp && !resp.message) {
+          setEditingNews(resp);
+          setActiveTab("create");
+        } else {
+          showToast({
+            type: "error",
+            message: resp?.message || "Failed to load article for editing",
+          });
+        }
+      } catch (err) {
+        console.error("Failed to load article for owner edit", err);
+        showToast({
+          type: "error",
+          message: "Failed to load article for editing",
+        });
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search, user]);
 
   const { showToast } = useToast();
 
@@ -1368,7 +1400,8 @@ export default function OwnerDashboard() {
                   <div
                     key={n._id}
                     // Added transition, scale, and box shadow for motion
-                    className="p-5 bg-white shadow-lg rounded-xl flex flex-col justify-between border-t-4 border-gray-200 transition duration-300 hover:shadow-xl hover:scale-[1.01] transform"
+                    onClick={() => navigate(`/news/${n._id}`)}
+                    className="p-5 bg-white shadow-lg rounded-xl flex flex-col justify-between border-t-4 border-gray-200 transition duration-300 hover:shadow-xl hover:scale-[1.01] transform cursor-pointer"
                   >
                     <div>
                       <span
@@ -1401,14 +1434,20 @@ export default function OwnerDashboard() {
                         <div className="flex gap-2">
                           {/* Approval button */}
                           <button
-                            onClick={() => approveNews(n._id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              approveNews(n._id);
+                            }}
                             className="flex-1 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center justify-center text-sm transform hover:scale-105"
                           >
                             <Check className="h-4 w-4 mr-1" /> Approve
                           </button>
                           {/* Delete button for pending items */}
                           <button
-                            onClick={() => removeNews(n._id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeNews(n._id);
+                            }}
                             className="flex-1 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition flex items-center justify-center text-sm transform hover:scale-105"
                           >
                             <Trash className="h-4 w-4 mr-1" /> Delete
@@ -1421,9 +1460,10 @@ export default function OwnerDashboard() {
                           <input
                             type="checkbox"
                             checked={!!n.headline}
-                            onChange={(e) =>
-                              toggleHeadline(n._id, e.target.checked)
-                            }
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              toggleHeadline(n._id, e.target.checked);
+                            }}
                             className="form-checkbox h-4 w-4 text-[var(--primary)] rounded border-gray-400"
                           />
                           <Zap
@@ -1438,7 +1478,8 @@ export default function OwnerDashboard() {
                         <div className="flex gap-2">
                           {/* Action buttons with motion */}
                           <button
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setActiveTab("create");
                               setEditingNews(n);
                             }}
@@ -1448,7 +1489,10 @@ export default function OwnerDashboard() {
                             {/* ... icon ... */}
                           </button>
                           <button
-                            onClick={() => removeNews(n._id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeNews(n._id);
+                            }}
                             className="p-1.5 bg-red-600 text-white rounded-full hover:bg-red-700 transition transform hover:scale-110"
                             title="Delete Article"
                           >

@@ -87,7 +87,7 @@ export default function Footer() {
             © {new Date().getFullYear()} MP Network 10 News — All rights
             reserved.
           </div>
-          <div className="mt-2 sm:mt-0">Made with ❤️ by ThinkCraftAI</div>
+          <div className="mt-2 sm:mt-0">Made with ❤️ by <a href="https://thinkcraftai.tech" target="_blank" rel="noopener noreferrer">ThinkCraftAI</a></div>
         </div>
       </div>
     </footer>

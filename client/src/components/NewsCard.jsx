@@ -1,9 +1,11 @@
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion"; // Import motion
-import { Clock, Tag } from "lucide-react";
+import { Clock, Tag, Edit } from "lucide-react";
+import { useAuth } from "../contexts/AuthContext.jsx";
 
 export default function NewsCard({ item }) {
+  const { user } = useAuth() || {};
   const [visible, setVisible] = useState(false);
 
   // Staggered entrance transition effect
@@ -40,6 +42,20 @@ export default function NewsCard({ item }) {
           />
           {/* Subtle gradient to anchor text if necessary */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+
+          {/* Edit button: visible to owner or the article author */}
+          {user &&
+            (user.role === "owner" ||
+              (item.author &&
+                (item.author._id === user.id || item.author === user.id))) && (
+              <Link
+                to={`/news/${item._id}`}
+                className="absolute top-3 right-3 bg-white/90 text-gray-800 p-2 rounded-full shadow-md hover:bg-white"
+                title="Edit Article"
+              >
+                <Edit className="h-4 w-4" />
+              </Link>
+            )}
 
           {/* Optional Headline Badge */}
           {item.headline && (

@@ -2,6 +2,18 @@ import News from "../models/News.js";
 import District from "../models/District.js";
 import Category from "../models/Category.js";
 import { v2 as cloudinary } from "cloudinary";
+
+// Helper: strip HTML tags and entities for server-side validation
+function stripHtml(s = "") {
+  let t = String(s || "");
+  // remove tags
+  t = t.replace(/<[^>]*>/g, "");
+  // remove common HTML entities (e.g. &nbsp;) and any &...; patterns
+  t = t.replace(/&[^;]+;/g, " ");
+  // collapse whitespace
+  t = t.replace(/\s+/g, " ").trim();
+  return t;
+}
 export async function listNews(req, res) {
   const filter = {};
 
@@ -104,6 +116,65 @@ export async function listNews(req, res) {
   const items = await News.find(filter)
     .populate("author", "name email")
     .sort({ createdAt: -1 });
+  // Try to ensure images are valid. To avoid making too many Cloudinary admin
+  // API calls for large lists, validate only the first N items; for the rest
+  // we fall back to constructing best-effort URLs.
+  try {
+    const MAX_VALIDATE = 25;
+    const validateCount = Math.min(items.length, MAX_VALIDATE);
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      const hasImage = !!it.image;
+      const looksLikeUrl = hasImage && /^https?:\/\//i.test(it.image);
+      if (it.cloudinaryPublicId && !looksLikeUrl) {
+        if (i < validateCount) {
+          try {
+            const info = await cloudinary.api.resource(it.cloudinaryPublicId);
+            if (info && info.secure_url) it.image = info.secure_url;
+            else
+              it.image = cloudinary.url(it.cloudinaryPublicId, {
+                secure: true,
+                fetch_format: "auto",
+                quality: "auto",
+              });
+          } catch (err) {
+            const isNotFound =
+              err &&
+              (err.http_code === 404 || /not found/i.test(err.message || ""));
+            if (isNotFound) {
+              it.image = null;
+            } else {
+              try {
+                it.image = cloudinary.url(it.cloudinaryPublicId, {
+                  secure: true,
+                  fetch_format: "auto",
+                  quality: "auto",
+                });
+              } catch (_) {
+                if (it.cloudinaryPublicId)
+                  it.image = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload/${it.cloudinaryPublicId}`;
+              }
+            }
+          }
+        } else {
+          // For items beyond the validation cap, build a best-effort URL.
+          try {
+            it.image = cloudinary.url(it.cloudinaryPublicId, {
+              secure: true,
+              fetch_format: "auto",
+              quality: "auto",
+            });
+          } catch (err) {
+            if (it.cloudinaryPublicId)
+              it.image = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload/${it.cloudinaryPublicId}`;
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Failed to build cloudinary URLs for listNews", err);
+  }
+
   res.json(items);
 }
 
@@ -145,6 +216,47 @@ export async function headlines(req, res) {
       .sort({ createdAt: -1 })
       .limit(5);
   }
+  // Ensure cloudinary URLs for headlines
+  try {
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
+      const hasImage = !!it.image;
+      const looksLikeUrl = hasImage && /^https?:\/\//i.test(it.image);
+      if (it.cloudinaryPublicId && !looksLikeUrl) {
+        try {
+          const info = await cloudinary.api.resource(it.cloudinaryPublicId);
+          if (info && info.secure_url) it.image = info.secure_url;
+          else
+            it.image = cloudinary.url(it.cloudinaryPublicId, {
+              secure: true,
+              fetch_format: "auto",
+              quality: "auto",
+            });
+        } catch (err) {
+          const isNotFound =
+            err &&
+            (err.http_code === 404 || /not found/i.test(err.message || ""));
+          if (isNotFound) {
+            it.image = null;
+          } else {
+            try {
+              it.image = cloudinary.url(it.cloudinaryPublicId, {
+                secure: true,
+                fetch_format: "auto",
+                quality: "auto",
+              });
+            } catch (_) {
+              if (it.cloudinaryPublicId)
+                it.image = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload/${it.cloudinaryPublicId}`;
+            }
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Failed to build cloudinary URLs for headlines", err);
+  }
+
   res.json(items);
 }
 
@@ -224,6 +336,56 @@ export async function getNewsById(req, res) {
     if (!isOwner && !isAuthor)
       return res.status(404).json({ message: "Not found" });
   }
+  // If image is stored as a Cloudinary public id (or missing full URL),
+  // attempt to resolve the actual secure URL using Cloudinary admin API.
+  try {
+    const hasImage = !!news.image;
+    const looksLikeUrl = hasImage && /^https?:\/\//i.test(news.image);
+    if (news.cloudinaryPublicId && !looksLikeUrl) {
+      try {
+        // Prefer asking Cloudinary for resource info (gives secure_url)
+        const info = await cloudinary.api.resource(news.cloudinaryPublicId);
+        if (info && info.secure_url) {
+          news.image = info.secure_url;
+        } else {
+          // fallback to URL builder
+          news.image = cloudinary.url(news.cloudinaryPublicId, {
+            secure: true,
+            fetch_format: "auto",
+            quality: "auto",
+          });
+        }
+      } catch (err) {
+        // If resource not found (404) then don't return a broken URL.
+        // Cloudinary errors often include an http_code property.
+        const isNotFound =
+          err &&
+          (err.http_code === 404 || /not found/i.test(err.message || ""));
+        if (isNotFound) {
+          news.image = null; // let client show placeholder instead
+        } else {
+          // non-404 error: try best-effort URL construction
+          try {
+            news.image = cloudinary.url(news.cloudinaryPublicId, {
+              secure: true,
+              fetch_format: "auto",
+              quality: "auto",
+            });
+          } catch (err2) {
+            if (news.cloudinaryPublicId) {
+              news.image = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload/${news.cloudinaryPublicId}`;
+            }
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error(
+      "Failed to resolve cloudinary image URL for getNewsById",
+      err
+    );
+  }
+
   res.json(news);
 }
 

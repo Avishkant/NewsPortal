@@ -20,7 +20,7 @@ export default function NewsDetail() {
 
   useEffect(() => {
     setLoading(true);
-    apiFetch(`/api/news/${id}`)
+    apiFetch(`/api/news/${id}`, { token })
       .then((d) => setItem(d))
       .catch(() =>
         showToast({ type: "error", message: "Failed to load article." })
@@ -103,9 +103,17 @@ export default function NewsDetail() {
               transition={{ delay: 0.2 }}
             >
               <img
-                src={imageUrl}
+                src={imageUrl || "/vite.svg"}
                 alt={item.title}
                 className="w-full h-full object-cover"
+                onError={(e) => {
+                  try {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = "/vite.svg";
+                  } catch (err) {
+                    /* ignore */
+                  }
+                }}
               />
             </motion.div>
           )}
@@ -232,7 +240,13 @@ export default function NewsDetail() {
           {canEdit && (
             <div className="mt-6 pt-4 border-t border-gray-200 space-x-3">
               <motion.button
-                onClick={() => navigate("/reporter")}
+                onClick={() => {
+                  // Route reporters to their editor, owners to owner dashboard edit flow
+                  if (user?.role === "reporter") navigate("/reporter");
+                  else if (user?.role === "owner")
+                    navigate(`/owner?editing=${id}`);
+                  else navigate("/news");
+                }}
                 className="px-3 py-2 bg-yellow-500 text-white rounded-lg font-medium hover:bg-yellow-600 transition shadow-md"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}

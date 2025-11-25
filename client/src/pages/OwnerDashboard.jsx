@@ -18,6 +18,7 @@ import {
   Plus,
   LogOut,
   X,
+  Edit,
   Check,
   Trash,
   Zap,
@@ -136,36 +137,6 @@ export default function OwnerDashboard() {
       } catch (err) {
         console.error("OwnerDashboard initialization failed", err);
         setLoadError(err?.message || "Failed to load dashboard data");
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // If the owner navigates here with ?editing=<id>, load that article into the inline editor
-  useEffect(() => {
-    const sp = new URLSearchParams(location.search || "");
-    const editId = sp.get("editing");
-    if (!editId) return;
-    // Only owners may use this flow
-    if (!user || user.role !== "owner") return;
-    (async () => {
-      try {
-        const resp = await authFetch(`/api/news/${editId}`);
-        if (resp && !resp.message) {
-          setEditingNews(resp);
-          setActiveTab("create");
-        } else {
-          showToast({
-            type: "error",
-            message: resp?.message || "Failed to load article for editing",
-          });
-        }
-      } catch (err) {
-        console.error("Failed to load article for owner edit", err);
-        showToast({
-          type: "error",
-          message: "Failed to load article for editing",
-        });
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -302,6 +273,11 @@ export default function OwnerDashboard() {
 
   const approveNews = async (id) => {
     if (!id) return;
+    const okConfirm = await promptConfirm({
+      title: "Approve article",
+      message: "Approve this article?",
+    });
+    if (!okConfirm) return;
     // optimistic update: mark approved in local state immediately
     const prev = news.slice();
     setNews((cur) =>
@@ -905,17 +881,17 @@ export default function OwnerDashboard() {
                       <div className="space-x-2 flex items-center">
                         <button
                           onClick={() => approveNews(n._id)}
-                          className="p-2 bg-green-600 text-white rounded-full hover:bg-green-700 transition transform hover:scale-110"
+                          className="px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 transition flex items-center gap-2 text-sm font-medium"
                           title="Approve"
                         >
-                          <Check className="h-5 w-5" />
+                          <Check className="h-4 w-4" /> Approve
                         </button>
                         <button
                           onClick={() => removeNews(n._id)}
-                          className="p-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition transform hover:scale-110"
+                          className="px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 transition flex items-center gap-2 text-sm font-medium"
                           title="Delete"
                         >
-                          <Trash className="h-5 w-5" />
+                          <Trash className="h-4 w-4" /> Delete
                         </button>
                       </div>
                     </div>
@@ -959,17 +935,17 @@ export default function OwnerDashboard() {
                       <div className="space-x-2 flex items-center">
                         <button
                           onClick={() => handleDeletionRequest(n._id, true)}
-                          className="p-2 bg-green-600 text-white rounded-full hover:bg-green-700 transition transform hover:scale-110"
+                          className="px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 transition flex items-center gap-2 text-sm font-medium"
                           title="Approve Deletion"
                         >
-                          <Check className="h-5 w-5" />
+                          <Check className="h-4 w-4" /> Approve
                         </button>
                         <button
                           onClick={() => handleDeletionRequest(n._id, false)}
-                          className="p-2 bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 transition transform hover:scale-110"
+                          className="px-3 py-1 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition flex items-center gap-2 text-sm font-medium"
                           title="Reject Deletion"
                         >
-                          <X className="h-5 w-5" />
+                          <X className="h-4 w-4" /> Reject
                         </button>
                       </div>
                     </div>
@@ -1313,7 +1289,7 @@ export default function OwnerDashboard() {
                           {/* Buttons with hover scale effect */}
                           <button
                             onClick={() => startEditReporter(r)}
-                            className="p-2 bg-yellow-500 text-white rounded-full hover:bg-yellow-600 transition transform hover:scale-110"
+                            className="px-3 py-1 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition flex items-center gap-2 text-sm font-medium"
                             title="Edit"
                           >
                             <svg
@@ -1327,10 +1303,11 @@ export default function OwnerDashboard() {
                                 clipRule="evenodd"
                               />
                             </svg>
+                            Edit
                           </button>
                           <button
                             onClick={() => removeReporter(r._id)}
-                            className="p-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition transform hover:scale-110"
+                            className="px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 transition flex items-center gap-2 text-sm font-medium"
                             title="Remove"
                           >
                             <svg
@@ -1345,6 +1322,7 @@ export default function OwnerDashboard() {
                                 clipRule="evenodd"
                               />
                             </svg>
+                            Remove
                           </button>
                         </div>
                       </li>
@@ -1455,27 +1433,33 @@ export default function OwnerDashboard() {
                         </div>
                       )}
 
-                      <div className="flex justify-between items-center pt-1">
-                        <label className="flex items-center gap-1 text-sm text-[var(--muted)] cursor-pointer">
+                      <div className="flex justify-between items-center pt-1 min-w-0 gap-2">
+                        <label
+                          onClick={(e) => e.stopPropagation()}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          className="min-w-0 flex-1 flex items-center gap-2 text-sm text-[var(--muted)] cursor-pointer"
+                        >
                           <input
                             type="checkbox"
                             checked={!!n.headline}
+                            onClick={(e) => e.stopPropagation()}
+                            onPointerDown={(e) => e.stopPropagation()}
                             onChange={(e) => {
                               e.stopPropagation();
                               toggleHeadline(n._id, e.target.checked);
                             }}
-                            className="form-checkbox h-4 w-4 text-[var(--primary)] rounded border-gray-400"
+                            className="form-checkbox h-4 w-4 text-[var(--primary)] rounded border-gray-400 flex-shrink-0"
                           />
                           <Zap
                             className={`h-4 w-4 ${
                               n.headline
                                 ? "text-[var(--accent)]"
                                 : "text-[var(--muted)]"
-                            } transition duration-200`}
+                            } transition duration-200 flex-shrink-0`}
                           />
-                          <span className="font-medium">Headline</span>
+                          <span className="font-medium truncate">Headline</span>
                         </label>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 items-center flex-shrink-0">
                           {/* Action buttons with motion */}
                           <button
                             onClick={(e) => {
@@ -1483,21 +1467,25 @@ export default function OwnerDashboard() {
                               setActiveTab("create");
                               setEditingNews(n);
                             }}
-                            className="p-1.5 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition transform hover:scale-110"
+                            className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition text-sm font-medium whitespace-nowrap"
                             title="Edit Article"
                           >
-                            {/* ... icon ... */}
+                            Edit
                           </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              removeNews(n._id);
-                            }}
-                            className="p-1.5 bg-red-600 text-white rounded-full hover:bg-red-700 transition transform hover:scale-110"
-                            title="Delete Article"
-                          >
-                            {/* ... icon ... */}
-                          </button>
+                          {!(
+                            activeTab === "pending" && n.status === "pending"
+                          ) && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeNews(n._id);
+                              }}
+                              className="px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 transition text-sm font-medium whitespace-nowrap"
+                              title="Delete Article"
+                            >
+                              Delete
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1534,25 +1522,23 @@ export default function OwnerDashboard() {
                           {c.name}
                         </div>
                         <div className="text-sm text-[var(--muted)] font-mono">
-                          {/* Slug removed from categories - showing createdAt for reference */}
                           Created: {new Date(c.createdAt).toLocaleDateString()}
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        {/* Action buttons with motion */}
                         <button
                           onClick={() => startEditCategory(c)}
-                          className="p-2 bg-yellow-500 text-white rounded-full hover:bg-yellow-600 transition transform hover:scale-110"
+                          className="px-3 py-1 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition text-sm font-medium"
                           title="Edit"
                         >
-                          {/* ... icon ... */}
+                          Edit
                         </button>
                         <button
                           onClick={() => deleteCategory(c._id)}
-                          className="p-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition transform hover:scale-110"
+                          className="px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 transition flex items-center gap-2 text-sm font-medium"
                           title="Delete"
                         >
-                          {/* ... icon ... */}
+                          <Trash className="h-4 w-4" /> Delete
                         </button>
                       </div>
                     </li>
@@ -1600,14 +1586,18 @@ export default function OwnerDashboard() {
                       <div className="flex gap-2">
                         <button
                           onClick={() => startEditDistrict(d)}
-                          className="p-2 bg-yellow-500 text-white rounded-full hover:bg-yellow-600 transition transform hover:scale-110"
+                          className="px-3 py-1 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition text-sm font-medium"
                           title="Edit"
-                        ></button>
+                        >
+                          Edit
+                        </button>
                         <button
                           onClick={() => deleteDistrict(d._id)}
-                          className="p-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition transform hover:scale-110"
+                          className="px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 transition flex items-center gap-2 text-sm font-medium"
                           title="Delete"
-                        ></button>
+                        >
+                          <Trash className="h-4 w-4" /> Delete
+                        </button>
                       </div>
                     </li>
                   ))}

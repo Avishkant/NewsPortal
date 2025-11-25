@@ -346,26 +346,28 @@ export default function ReporterDashboard() {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                     >
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <div className="font-semibold text-gray-900">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="font-semibold text-gray-900 line-clamp-2">
                             {n.title}
                           </div>
-                          <div className="text-sm text-gray-600">
+                          <div className="text-sm text-gray-600 break-words">
                             {n.category} —{" "}
                             {new Date(n.createdAt).toLocaleDateString()}
                           </div>
                         </div>
-                        <div className="flex items-center space-x-3 flex-shrink-0">
+
+                        <div className="flex items-center gap-2 flex-shrink-0 mt-2 sm:mt-0">
                           <StatusPill status={n.status} approved={n.approved} />
 
                           <button
                             onClick={() => setEditing(n)}
-                            className="p-2 bg-gray-200 text-gray-700 rounded-full hover:bg-yellow-500 hover:text-white transition shadow-sm"
+                            className="px-3 py-1 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition text-sm font-medium whitespace-nowrap"
                             title="Edit Article"
                           >
-                            <Edit className="h-4 w-4" />
+                            Edit
                           </button>
+
                           <button
                             onClick={() => remove(n._id, isApproved)}
                             title={
@@ -373,13 +375,13 @@ export default function ReporterDashboard() {
                                 ? "Delete Approved Article"
                                 : "Delete Draft"
                             }
-                            className={`p-2 rounded-full transition shadow-sm ${
+                            className={`px-3 py-1 rounded-md text-sm font-medium transition shadow-sm whitespace-nowrap ${
                               !isApproved
-                                ? "bg-red-500 text-white hover:bg-red-600"
+                                ? "bg-red-600 text-white hover:bg-red-700"
                                 : "bg-gray-100 text-gray-400 hover:bg-red-500 hover:text-white"
                             }`}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            Delete
                           </button>
                         </div>
                       </div>

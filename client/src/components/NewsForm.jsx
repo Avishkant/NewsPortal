@@ -76,7 +76,19 @@ export default function NewsForm({
     "video",
   ];
 
-  const { quill, quillRef } = useQuill({ modules, formats });
+  const editorInitErrorRef = useRef(null);
+  let quill = null;
+  let quillRef = { current: null };
+  try {
+    // useQuill may throw in some environments (e.g. if a dependency uses `require` unexpectedly).
+    const _q = useQuill({ modules, formats });
+    quill = _q.quill;
+    quillRef = _q.quillRef;
+  } catch (err) {
+    // Capture init error in a ref (synchronous, safe during render)
+    console.error("Quill init error:", err);
+    editorInitErrorRef.current = err?.message || String(err);
+  }
 
   // --- State Synchronization ---
   useEffect(() => {
@@ -545,18 +557,57 @@ export default function NewsForm({
         </label>
         {/* Custom Quill Styles: Ensures white background for content area and full width */}
         {/* Responsive heights: smaller on mobile, taller on desktop for comfortable editing */}
-        <div
-          ref={quillRef}
-          className="quill-editor-container min-h-[250px] md:min-h-[400px] bg-white"
-          tabIndex={0}
-          onClick={() => {
-            try {
-              if (quill && typeof quill.focus === "function") quill.focus();
-            } catch (err) {
-              // ignore
-            }
-          }}
-        />
+        {editorInitErrorRef.current ? (
+          <div className="p-4 border rounded bg-red-50 text-red-700">
+            <div className="font-semibold mb-2">
+              Editor failed to initialize
+            </div>
+            <div className="text-sm mb-3">
+              {String(editorInitErrorRef.current)}
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="px-3 py-1 bg-blue-600 text-white rounded"
+              >
+                Reload
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  try {
+                    // attempt to focus existing area as a fallback
+                    const el = document.querySelector(
+                      ".quill-editor-container"
+                    );
+                    el &&
+                      el.scrollIntoView({
+                        behavior: "smooth",
+                        block: "center",
+                      });
+                  } catch (e) {}
+                }}
+                className="px-3 py-1 bg-gray-200 rounded"
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div
+            ref={quillRef}
+            className="quill-editor-container min-h-[250px] md:min-h-[400px] bg-white"
+            tabIndex={0}
+            onClick={() => {
+              try {
+                if (quill && typeof quill.focus === "function") quill.focus();
+              } catch (err) {
+                // ignore
+              }
+            }}
+          />
+        )}
         <input
           ref={hiddenFileRef}
           type="file"

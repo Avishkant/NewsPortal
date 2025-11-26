@@ -170,10 +170,24 @@ export default function OwnerDashboard() {
   const createReporter = async (e) => {
     e.preventDefault();
     try {
-      console.log("Creating reporter with", form);
+      // normalize inputs
+      const name = String(form.name || "").trim();
+      const email = String(form.email || "").trim();
+      const password = String(form.password || "").trim();
+
+      // quick client-side duplicate email check to avoid server 400
+      const existsLocal = (reporters || []).some(
+        (r) => String(r.email || "").toLowerCase() === email.toLowerCase()
+      );
+      if (existsLocal) {
+        showToast({ type: "error", message: "Email already exists" });
+        return;
+      }
+
+      console.log("Creating reporter with", { name, email });
       const res = await authFetch("/api/reporters", {
         method: "POST",
-        body: form,
+        body: { name, email, password },
       });
       // server returns { id, name, email } on success or { message } on error
       if (res && res.id) {
@@ -220,27 +234,51 @@ export default function OwnerDashboard() {
     e.preventDefault();
     if (!reporterEdit || !reporterEdit._id) return;
     try {
-      const body = { name: reporterEdit.name, email: reporterEdit.email };
-      if (reporterEdit.password) body.password = reporterEdit.password;
-      // attempt to update via PUT (server may not implement this; handle errors)
-      const res = await authFetch(`/api/reporters/${reporterEdit._id}`, {
-        method: "PUT",
-        body,
-      });
-      if (res && (res.id || res._id)) {
-        setReporterEdit(null);
-        await loadReporters();
-        showToast({ type: "success", message: "Reporter updated" });
-      } else {
-        // server may return { message: "..." } or a string
-        console.error("Update reporter failed", res);
-        showToast({
-          type: "error",
-          message:
-            res?.message ||
-            "Failed to update reporter (server may not support edit)",
-        });
+      // Server currently supports changing reporterId via PATCH /:id/change-id.
+      // Update reporterId if it was modified in the edit form.
+      const orig = reporters.find(
+        (x) => String(x._id) === String(reporterEdit._id)
+      );
+      if (
+        reporterEdit.reporterId &&
+        orig &&
+        reporterEdit.reporterId !== orig.reporterId
+      ) {
+        const clean = String(reporterEdit.reporterId).toUpperCase().trim();
+        if (!/^[A-Z0-9-]{5,30}$/.test(clean)) {
+          showToast({ type: "error", message: "Invalid reporter ID format" });
+          return;
+        }
+        try {
+          const res = await authFetch(
+            `/api/reporters/${reporterEdit._id}/change-id`,
+            {
+              method: "PATCH",
+              body: { reporterId: clean },
+            }
+          );
+          // apiFetch returns parsed JSON on success; ensure response contains reporterId
+          if (!res || !res.reporterId) {
+            console.error("Change reporterId unexpected response", res);
+            showToast({
+              type: "error",
+              message: res?.message || "Failed to change reporter ID",
+            });
+            return;
+          }
+        } catch (err) {
+          // apiFetch throws for non-2xx responses; try to show server-provided message
+          console.error("Change reporterId failed", err);
+          const serverMsg =
+            err?.response?.message || err?.message || String(err);
+          showToast({ type: "error", message: serverMsg });
+          return;
+        }
       }
+      // Note: name/email/password updates are not implemented server-side currently.
+      setReporterEdit(null);
+      await loadReporters();
+      showToast({ type: "success", message: "Reporter updated" });
     } catch (err) {
       console.error("Failed to update reporter", err);
       showToast({
@@ -1223,6 +1261,25 @@ export default function OwnerDashboard() {
                       required
                     />
 
+                    {reporterEdit && (
+                      <div>
+                        <label className="block text-xs text-[var(--muted)] mb-1">
+                          Reporter ID
+                        </label>
+                        <input
+                          value={reporterEdit.reporterId || ""}
+                          onChange={(e) =>
+                            setReporterEdit({
+                              ...reporterEdit,
+                              reporterId: e.target.value,
+                            })
+                          }
+                          placeholder="Reporter ID (e.g. REP-25-000001)"
+                          className="p-3 border border-gray-300 rounded-lg w-full focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition bg-white text-gray-900 font-mono"
+                        />
+                      </div>
+                    )}
+
                     <input
                       value={
                         reporterEdit
@@ -1284,6 +1341,9 @@ export default function OwnerDashboard() {
                           <div className="text-sm text-[var(--muted)]">
                             {r.email}
                           </div>
+                          <div className="text-sm text-[var(--muted)] font-mono">
+                            ID: {r.reporterId || "—"}
+                          </div>
                         </div>
                         <div className="flex gap-2">
                           {/* Buttons with hover scale effect */}
@@ -1305,6 +1365,7 @@ export default function OwnerDashboard() {
                             </svg>
                             Edit
                           </button>
+
                           <button
                             onClick={() => removeReporter(r._id)}
                             className="px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 transition flex items-center gap-2 text-sm font-medium"

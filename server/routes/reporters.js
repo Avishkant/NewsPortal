@@ -31,4 +31,11 @@ router.delete(
   asyncHandler(reportersController.deleteReporter)
 );
 
+router.patch(
+  "/:id/change-id",
+  protect,
+  requireRole("owner"),
+  asyncHandler(reportersController.changeReporterId)
+);
+
 export default router;

@@ -741,14 +741,6 @@ export default function OwnerDashboard() {
             isPrimary: true,
           },
           {
-            key: "settings",
-            label: "Settings",
-            onClick: () => setActiveTab("settings"),
-            active: activeTab === "settings",
-            icon: <Settings className="h-5 w-5" />,
-            separator: true,
-          },
-          {
             key: "logout",
             label: "Logout",
             onClick: () => {

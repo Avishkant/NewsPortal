@@ -669,126 +669,25 @@
 // }
 // // */
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-import { useState, useEffect, useRef, useCallback } from "react"; // Added useCallback
+import {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  lazy,
+  Suspense,
+} from "react"; // Added lazy + Suspense
 import { useAuth } from "../contexts/AuthContext.jsx";
 import API_BASE, { apiFetch } from "../api.js";
 import { useToast } from "../contexts/ToastContext.jsx";
 // Removed: import { useQuill } from "react-quilljs";
 // Removed: import "quill/dist/quill.snow.css";
-import { Image, X, UploadCloud, Loader2, Save, Send } from "lucide-react"; 
+import { Image, X, UploadCloud, Loader2, Save, Send } from "lucide-react";
 
-// --------------------------------------------------------------------------
-// 🚨 FIX: Client-Side Only Quill Wrapper
-// This component is now rendered dynamically by NewsForm.
-// --------------------------------------------------------------------------
-// This component should be in its own file for true dynamic import, but is
-// kept here for a complete solution within the provided file structure.
-
-// We declare the necessary imports locally for the client wrapper component
-// The parent component NewsForm MUST NOT import react-quilljs
-import { useQuill } from "react-quilljs"; 
-import "quill/dist/quill.snow.css";
-
-function QuillClientWrapper({
-  initialContent,
-  onContentChange,
-  modules,
-  formats,
-  handleImageUploadClick,
-  quillInstanceRef,
-}) {
-  const { quill, quillRef } = useQuill({ modules, formats });
-
-  // Expose the quill instance to the parent component's ref
-  useEffect(() => {
-    if (quill) {
-      quillInstanceRef.current = quill;
-    }
-    return () => {
-      quillInstanceRef.current = null;
-    };
-  }, [quill, quillInstanceRef]);
-
-  // Sync initial content & register change handler
-  useEffect(() => {
-    if (!quill) return;
-
-    if (initialContent) {
-      try {
-        quill.clipboard.dangerouslyPasteHTML(initialContent);
-      } catch (e) { /* ignore */ }
-    }
-
-    const handler = () => onContentChange(quill.root.innerHTML);
-    quill.on("text-change", handler);
-
-    const toolbar = quill.getModule("toolbar");
-    if (toolbar) {
-      // The handler must be registered AFTER quill is initialized
-      toolbar.addHandler("image", handleImageUploadClick);
-    }
-
-    return () => {
-      quill.off("text-change", handler);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quill]);
-
-  // Focus and scroll editor into view on mobile
-  useEffect(() => {
-    if (!quill) return;
-    try {
-      const isMobile =
-        typeof window !== "undefined" && window.innerWidth <= 768;
-      if (isMobile) {
-        setTimeout(() => {
-          try {
-            quill.focus();
-            if (
-              quillRef &&
-              quillRef.current &&
-              quillRef.current.scrollIntoView
-            ) {
-              quillRef.current.scrollIntoView({
-                behavior: "smooth",
-                block: "center",
-              });
-            }
-          } catch (e) { /* ignore focus errors */ }
-        }, 120);
-      }
-    } catch (e) { /* ignore */ }
-  }, [quill, quillRef]);
-
-  return (
-    <div
-      ref={quillRef}
-      className="quill-editor-container min-h-[250px] md:min-h-[400px] bg-white"
-      tabIndex={0}
-      onClick={() => {
-        try {
-          if (quill && typeof quill.focus === "function") quill.focus();
-        } catch (err) { /* ignore */ }
-      }}
-    />
-  );
-}
+// We'll lazy-load a separate Quill editor component to avoid importing any
+// Quill-related code during server-side rendering. The actual editor lives
+// in `client/src/components/QuillEditor.jsx` and is loaded with React.lazy.
+const QuillEditor = lazy(() => import("./QuillEditor.jsx"));
 
 // --------------------------------------------------------------------------
 // NewsForm Component
@@ -807,7 +706,7 @@ export default function NewsForm({
   const [districtsList, setDistrictsList] = useState(
     Array.isArray(districtsProp) ? districtsProp : []
   );
-  const [content, setContent] = useState(initial.content || ""); 
+  const [content, setContent] = useState(initial.content || "");
   const [image, setImage] = useState(initial.image || "");
   const [imagePublicId, setImagePublicId] = useState(
     initial.imagePublicId || ""
@@ -821,24 +720,15 @@ export default function NewsForm({
   const { showToast } = useToast();
   const hiddenFileRef = useRef(null);
   const featureFileRef = useRef(null);
-  
+
   // Ref to hold the Quill instance from the Client Wrapper
   const quillInstanceRef = useRef(null);
 
-  // 🚨 FIX: State to track if the editor component should be rendered
-  const [EditorComponent, setEditorComponent] = useState(null);
-
-  // 🚨 FIX: Load the component dynamically AFTER the client mounts
+  // Render editor only on client to avoid SSR bundling of Quill
+  const [isClient, setIsClient] = useState(false);
   useEffect(() => {
-    // Check if running in a browser environment
-    if (typeof window !== 'undefined') {
-        // We set the locally defined wrapper component as the EditorComponent
-        // This prevents the synchronous import of react-quilljs until the client
-        // has fully loaded the module.
-        setEditorComponent(() => QuillClientWrapper);
-    }
-  }, []); 
-
+    if (typeof window !== "undefined") setIsClient(true);
+  }, []);
 
   // --- Quill Configuration (kept here as they are simple objects) ---
   const modules = {
@@ -944,7 +834,7 @@ export default function NewsForm({
           const data = JSON.parse(xhr.responseText);
           if (data?.url) {
             // Use quillInstanceRef.current for editor insertion
-            if (insertToEditor && quillInstanceRef.current) { 
+            if (insertToEditor && quillInstanceRef.current) {
               try {
                 const quill = quillInstanceRef.current;
                 const range = quill.getSelection(true) || { index: 0 };
@@ -1013,7 +903,7 @@ export default function NewsForm({
 
     // ... validation logic (omitted for brevity, assume it's correct)
     const stripHtmlClient = (s = "") =>
-    String(s || "")
+      String(s || "")
         .replace(/<[^>]*>/g, "")
         .replace(/&[^;]+;/g, " ")
         .replace(/\s+/g, " ")
@@ -1022,12 +912,11 @@ export default function NewsForm({
     const missing = [];
     if (!title || !String(title).trim()) missing.push("title");
     if (!currentContent || !stripHtmlClient(currentContent))
-        missing.push("content");
+      missing.push("content");
     if (missing.length) {
-        showToast({ type: "error", message: `Missing: ${missing.join(", ")}` });
-        return;
+      showToast({ type: "error", message: `Missing: ${missing.join(", ")}` });
+      return;
     }
-
 
     const body = {
       title,
@@ -1042,31 +931,31 @@ export default function NewsForm({
     };
     // ... API submission logic (omitted for brevity, assume it's correct)
     try {
-        let res;
-        if (initial._id) {
-            res = await authFetch(`/api/news/${initial._id}`, {
-                method: "PUT",
-                body,
-            });
-        } else {
-            res = await authFetch("/api/news", { method: "POST", body });
-        }
-        if (res && (res._id || res.id)) {
-            showToast({ type: "success", message: "News saved" });
-            onSaved && onSaved();
-        } else {
-            const msg = res?.message || "Failed to save news";
-            showToast({ type: "error", message: msg });
-        }
-    } catch (err) {
-        showToast({
-            type: "error",
-            message: err?.message || "Failed to save news",
+      let res;
+      if (initial._id) {
+        res = await authFetch(`/api/news/${initial._id}`, {
+          method: "PUT",
+          body,
         });
+      } else {
+        res = await authFetch("/api/news", { method: "POST", body });
+      }
+      if (res && (res._id || res.id)) {
+        showToast({ type: "success", message: "News saved" });
+        onSaved && onSaved();
+      } else {
+        const msg = res?.message || "Failed to save news";
+        showToast({ type: "error", message: msg });
+      }
+    } catch (err) {
+      showToast({
+        type: "error",
+        message: err?.message || "Failed to save news",
+      });
     }
   };
 
-  const RenderedEditor = EditorComponent;
+  // We'll render the lazy `QuillEditor` only on the client inside Suspense
 
   return (
     <form onSubmit={submit} className="space-y-6">
@@ -1278,17 +1167,25 @@ export default function NewsForm({
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Article Content
         </label>
-        
+
         {/* Render the editor only if the component has been successfully loaded */}
-        {RenderedEditor ? (
-          <RenderedEditor
-            initialContent={initial.content} // Use initial.content here for the wrapper's initial state sync
-            onContentChange={setContent}
-            modules={modules}
-            formats={formats}
-            handleImageUploadClick={handleEditorImageClick}
-            quillInstanceRef={quillInstanceRef}
-          />
+        {isClient ? (
+          <Suspense
+            fallback={
+              <div className="p-4 border rounded-lg bg-gray-100 text-gray-600 min-h-[250px] md:min-h-[400px] flex items-center justify-center">
+                Editor loading...
+              </div>
+            }
+          >
+            <QuillEditor
+              initialContent={initial.content}
+              onContentChange={setContent}
+              modules={modules}
+              formats={formats}
+              handleImageUploadClick={handleEditorImageClick}
+              quillInstanceRef={quillInstanceRef}
+            />
+          </Suspense>
         ) : (
           // Server-side/initial render placeholder
           <div className="p-4 border rounded-lg bg-gray-100 text-gray-600 min-h-[250px] md:min-h-[400px] flex items-center justify-center">
@@ -1336,6 +1233,6 @@ export default function NewsForm({
 }
 
 // NOTE: I've had to duplicate the Quill-related imports inside the QuillClientWrapper
-// for this single-file solution to work. If you separate QuillClientWrapper into 
-// its own file (e.g., QuillEditor.jsx), you can remove the duplicate imports 
+// for this single-file solution to work. If you separate QuillClientWrapper into
+// its own file (e.g., QuillEditor.jsx), you can remove the duplicate imports
 // inside NewsForm and QuillClientWrapper's body.

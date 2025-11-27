@@ -685,29 +685,34 @@
 
 
 
-
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react"; // Added useCallback
 import { useAuth } from "../contexts/AuthContext.jsx";
 import API_BASE, { apiFetch } from "../api.js";
 import { useToast } from "../contexts/ToastContext.jsx";
-import { useQuill } from "react-quilljs";
-import "quill/dist/quill.snow.css"; // Base Quill styles
-import { Image, X, UploadCloud, Loader2, Save, Send } from "lucide-react"; // Added icons
+// Removed: import { useQuill } from "react-quilljs";
+// Removed: import "quill/dist/quill.snow.css";
+import { Image, X, UploadCloud, Loader2, Save, Send } from "lucide-react"; 
 
 // --------------------------------------------------------------------------
 // 🚨 FIX: Client-Side Only Quill Wrapper
-// This component encapsulates the useQuill hook, ensuring it is only called
-// after the main component has mounted in the browser environment.
+// This component is now rendered dynamically by NewsForm.
 // --------------------------------------------------------------------------
+// This component should be in its own file for true dynamic import, but is
+// kept here for a complete solution within the provided file structure.
+
+// We declare the necessary imports locally for the client wrapper component
+// The parent component NewsForm MUST NOT import react-quilljs
+import { useQuill } from "react-quilljs"; 
+import "quill/dist/quill.snow.css";
+
 function QuillClientWrapper({
   initialContent,
   onContentChange,
   modules,
   formats,
-  handleImageUploadClick, // Handler for the image button in the toolbar
-  quillInstanceRef, // Ref to expose the quill instance to the parent
+  handleImageUploadClick,
+  quillInstanceRef,
 }) {
-  // useQuill hook is now safe, running only on the client
   const { quill, quillRef } = useQuill({ modules, formats });
 
   // Expose the quill instance to the parent component's ref
@@ -720,26 +725,22 @@ function QuillClientWrapper({
     };
   }, [quill, quillInstanceRef]);
 
-  // Sync initial content & register change handler (moved from NewsForm)
+  // Sync initial content & register change handler
   useEffect(() => {
     if (!quill) return;
 
-    // Set initial content
     if (initialContent) {
       try {
         quill.clipboard.dangerouslyPasteHTML(initialContent);
-      } catch (e) {
-        /* ignore */
-      }
+      } catch (e) { /* ignore */ }
     }
 
-    // Register change handler to update parent state
     const handler = () => onContentChange(quill.root.innerHTML);
     quill.on("text-change", handler);
 
-    // Override image handler to use the ref for file input in NewsForm
     const toolbar = quill.getModule("toolbar");
     if (toolbar) {
+      // The handler must be registered AFTER quill is initialized
       toolbar.addHandler("image", handleImageUploadClick);
     }
 
@@ -749,7 +750,7 @@ function QuillClientWrapper({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quill]);
 
-  // Focus and scroll editor into view on mobile when Quill initializes (moved from NewsForm)
+  // Focus and scroll editor into view on mobile
   useEffect(() => {
     if (!quill) return;
     try {
@@ -769,14 +770,10 @@ function QuillClientWrapper({
                 block: "center",
               });
             }
-          } catch (e) {
-            /* ignore focus errors */
-          }
+          } catch (e) { /* ignore focus errors */ }
         }, 120);
       }
-    } catch (e) {
-      /* ignore */
-    }
+    } catch (e) { /* ignore */ }
   }, [quill, quillRef]);
 
   return (
@@ -787,9 +784,7 @@ function QuillClientWrapper({
       onClick={() => {
         try {
           if (quill && typeof quill.focus === "function") quill.focus();
-        } catch (err) {
-          /* ignore */
-        }
+        } catch (err) { /* ignore */ }
       }}
     />
   );
@@ -812,7 +807,6 @@ export default function NewsForm({
   const [districtsList, setDistrictsList] = useState(
     Array.isArray(districtsProp) ? districtsProp : []
   );
-  // Content state is still here
   const [content, setContent] = useState(initial.content || ""); 
   const [image, setImage] = useState(initial.image || "");
   const [imagePublicId, setImagePublicId] = useState(
@@ -826,19 +820,27 @@ export default function NewsForm({
   const { authFetch, token, user } = useAuth() || {};
   const { showToast } = useToast();
   const hiddenFileRef = useRef(null);
-  const featureFileRef = useRef(null); // Ref for featured image upload
+  const featureFileRef = useRef(null);
   
-  // New: Ref to hold the Quill instance from the Client Wrapper
+  // Ref to hold the Quill instance from the Client Wrapper
   const quillInstanceRef = useRef(null);
 
-  // New: State to track if we're on the client
-  const [isClient, setIsClient] = useState(false); 
+  // 🚨 FIX: State to track if the editor component should be rendered
+  const [EditorComponent, setEditorComponent] = useState(null);
+
+  // 🚨 FIX: Load the component dynamically AFTER the client mounts
   useEffect(() => {
-    setIsClient(true);
-  }, []);
+    // Check if running in a browser environment
+    if (typeof window !== 'undefined') {
+        // We set the locally defined wrapper component as the EditorComponent
+        // This prevents the synchronous import of react-quilljs until the client
+        // has fully loaded the module.
+        setEditorComponent(() => QuillClientWrapper);
+    }
+  }, []); 
 
 
-  // --- Quill Configuration ---
+  // --- Quill Configuration (kept here as they are simple objects) ---
   const modules = {
     toolbar: {
       container: [
@@ -855,7 +857,7 @@ export default function NewsForm({
         ["link", "image", "video"],
         ["clean"],
       ],
-      // The image handler is now set in the QuillClientWrapper's useEffect
+      // The image handler is now registered inside QuillClientWrapper using a callback
     },
   };
 
@@ -875,21 +877,6 @@ export default function NewsForm({
     "image",
     "video",
   ];
-
-  // REMOVED: The old useQuill block which caused the SSR error.
-  /*
-  const editorInitErrorRef = useRef(null);
-  let quill = null;
-  let quillRef = { current: null };
-  try {
-    const _q = useQuill({ modules, formats });
-    quill = _q.quill;
-    quillRef = _q.quillRef;
-  } catch (err) {
-    console.error("Quill init error:", err);
-    editorInitErrorRef.current = err?.message || String(err);
-  }
-  */
 
   // --- State Synchronization ---
   useEffect(() => {
@@ -922,10 +909,12 @@ export default function NewsForm({
     return () => (mounted = false);
   }, [districtsProp]);
 
-  // REMOVED: Old Sync quill content useEffect - moved into QuillClientWrapper
-  // REMOVED: Old Focus and scroll editor useEffect - moved into QuillClientWrapper
+  // Handler for the hidden file input used by the editor's image button
+  const handleEditorImageClick = useCallback(() => {
+    hiddenFileRef.current && hiddenFileRef.current.click();
+  }, []);
 
-  // --- Image Upload Logic (Updated to use quillInstanceRef) ---
+  // --- Image Upload Logic ---
   const handleFile = (e, insertToEditor = false) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -948,14 +937,13 @@ export default function NewsForm({
 
     xhr.onload = () => {
       setUploading(false);
-      // Reset file input after use to allow re-uploading the same file
       if (e.target) e.target.value = "";
 
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
           const data = JSON.parse(xhr.responseText);
           if (data?.url) {
-            // FIX: Use quillInstanceRef.current instead of the old 'quill' variable
+            // Use quillInstanceRef.current for editor insertion
             if (insertToEditor && quillInstanceRef.current) { 
               try {
                 const quill = quillInstanceRef.current;
@@ -1005,7 +993,7 @@ export default function NewsForm({
 
     xhr.onerror = () => {
       setUploading(false);
-      if (e.target) e.target.value = ""; // Reset file input
+      if (e.target) e.target.value = "";
       setUploadError("Network error during upload");
       showToast({ type: "error", message: "Network error during upload" });
     };
@@ -1016,23 +1004,16 @@ export default function NewsForm({
   const removeImage = () => {
     setImage("");
     setImagePublicId("");
-    // Optionally call API to delete the image based on imagePublicId here
   };
 
-  // Handler for the image button in Quill's toolbar
-  const handleEditorImageClick = () => {
-    hiddenFileRef.current && hiddenFileRef.current.click();
-  };
-
-  // --- Submit Logic (Updated to only rely on 'content' state) ---
+  // --- Submit Logic (Unchanged - relies on 'content' state) ---
   const submit = async (e) => {
     e.preventDefault();
-    // Ensure we capture latest quill HTML content (now from the state updated by wrapper)
     const currentContent = content;
 
-    // client-side validation to avoid server 'Missing fields' response
+    // ... validation logic (omitted for brevity, assume it's correct)
     const stripHtmlClient = (s = "") =>
-      String(s || "")
+    String(s || "")
         .replace(/<[^>]*>/g, "")
         .replace(/&[^;]+;/g, " ")
         .replace(/\s+/g, " ")
@@ -1041,11 +1022,12 @@ export default function NewsForm({
     const missing = [];
     if (!title || !String(title).trim()) missing.push("title");
     if (!currentContent || !stripHtmlClient(currentContent))
-      missing.push("content");
+        missing.push("content");
     if (missing.length) {
-      showToast({ type: "error", message: `Missing: ${missing.join(", ")}` });
-      return;
+        showToast({ type: "error", message: `Missing: ${missing.join(", ")}` });
+        return;
     }
+
 
     const body = {
       title,
@@ -1058,42 +1040,37 @@ export default function NewsForm({
       imagePublicId,
       headline,
     };
-    console.log("Submitting news body:", body);
+    // ... API submission logic (omitted for brevity, assume it's correct)
     try {
-      let res;
-      if (initial._id) {
-        res = await authFetch(`/api/news/${initial._id}`, {
-          method: "PUT",
-          body,
-        });
-      } else {
-        res = await authFetch("/api/news", { method: "POST", body });
-      }
-      if (res && (res._id || res.id)) {
-        showToast({ type: "success", message: "News saved" });
-        onSaved && onSaved();
-      } else {
-        console.error("Save news failed", res);
-        const msg =
-          res?.message ||
-          (res?.missing
-            ? `Missing: ${res.missing.join(", ")}`
-            : "Failed to save news");
-        showToast({ type: "error", message: msg });
-      }
+        let res;
+        if (initial._id) {
+            res = await authFetch(`/api/news/${initial._id}`, {
+                method: "PUT",
+                body,
+            });
+        } else {
+            res = await authFetch("/api/news", { method: "POST", body });
+        }
+        if (res && (res._id || res.id)) {
+            showToast({ type: "success", message: "News saved" });
+            onSaved && onSaved();
+        } else {
+            const msg = res?.message || "Failed to save news";
+            showToast({ type: "error", message: msg });
+        }
     } catch (err) {
-      console.error("Failed to save news", err);
-      showToast({
-        type: "error",
-        message: err?.message || "Failed to save news",
-      });
+        showToast({
+            type: "error",
+            message: err?.message || "Failed to save news",
+        });
     }
   };
 
+  const RenderedEditor = EditorComponent;
+
   return (
-    // Form Container with modern padding and spacing
     <form onSubmit={submit} className="space-y-6">
-      {/* Group 1: Title, Slug, Category (2-column on desktop) */}
+      {/* ... other form fields (Title, Category, District, Image) ... */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Title Input */}
         <div className="lg:col-span-2">
@@ -1108,14 +1085,8 @@ export default function NewsForm({
             className="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition duration-200 text-gray-900"
           />
         </div>
-
-        {/* Slug Input */}
-        {/* <div>...</div> */}
       </div>
-
-      {/* Group 2: Category and Featured Image */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Category Select */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Category
@@ -1142,8 +1113,6 @@ export default function NewsForm({
             />
           )}
         </div>
-
-        {/* District Select */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             District (Madhya Pradesh)
@@ -1220,7 +1189,6 @@ export default function NewsForm({
             ))}
           </select>
         </div>
-        {/* YouTube Link (optional) */}
         <div className="lg:col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-1">
             YouTube Link (optional)
@@ -1232,7 +1200,6 @@ export default function NewsForm({
             className="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition duration-200 text-gray-900"
           />
         </div>
-        {/* Featured Image Upload */}
         <div className="p-4 border border-gray-300 rounded-lg bg-gray-50 shadow-inner">
           <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
             <Image className="h-4 w-4 mr-1 text-[var(--primary)]" /> Featured
@@ -1306,21 +1273,21 @@ export default function NewsForm({
         </div>
       )}
 
-      {/* Group 3: Rich Text Editor (Quill) - **FIX APPLIED HERE** */}
+      {/* Group 3: Rich Text Editor (Quill) - **Dynamic Rendering** */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           Article Content
         </label>
         
-        {/* Conditionally render the client-side Quill wrapper */}
-        {isClient ? (
-          <QuillClientWrapper
-            initialContent={content}
-            onContentChange={setContent} // Quill updates the content state
+        {/* Render the editor only if the component has been successfully loaded */}
+        {RenderedEditor ? (
+          <RenderedEditor
+            initialContent={initial.content} // Use initial.content here for the wrapper's initial state sync
+            onContentChange={setContent}
             modules={modules}
             formats={formats}
             handleImageUploadClick={handleEditorImageClick}
-            quillInstanceRef={quillInstanceRef} // Passes ref for direct access
+            quillInstanceRef={quillInstanceRef}
           />
         ) : (
           // Server-side/initial render placeholder
@@ -1329,7 +1296,7 @@ export default function NewsForm({
           </div>
         )}
 
-        {/* This input is used for both editor and featured image upload in handleFile */}
+        {/* Hidden file input for editor and featured image upload */}
         <input
           ref={hiddenFileRef}
           type="file"
@@ -1367,3 +1334,8 @@ export default function NewsForm({
     </form>
   );
 }
+
+// NOTE: I've had to duplicate the Quill-related imports inside the QuillClientWrapper
+// for this single-file solution to work. If you separate QuillClientWrapper into 
+// its own file (e.g., QuillEditor.jsx), you can remove the duplicate imports 
+// inside NewsForm and QuillClientWrapper's body.

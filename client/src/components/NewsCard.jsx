@@ -66,8 +66,8 @@ export default function NewsCard({ item }) {
             </Link>
           )}
 
-        {/* Optional Headline Badge */}
-        {item.headline && (
+        {/* Optional Headline Badge - visible to owners only */}
+        {item.headline && user && user.role === "owner" && (
           <span className="absolute top-3 left-3 bg-red-600 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg">
             HEADLINE
           </span>

@@ -1334,7 +1334,7 @@ export default function OwnerDashboard() {
                         key={r._id}
                         className="p-3 border border-gray-200 rounded-lg flex justify-between items-center bg-gray-50 hover:bg-gray-100 transition duration-200 transform hover:translate-x-0.5"
                       >
-                        <div>
+                        <div className="min-w-0">
                           <div className="font-semibold text-gray-900">
                             {r.name}
                           </div>
@@ -1345,11 +1345,11 @@ export default function OwnerDashboard() {
                             ID: {r.reporterId || "—"}
                           </div>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 items-center flex-shrink-0">
                           {/* Buttons with hover scale effect */}
                           <button
                             onClick={() => startEditReporter(r)}
-                            className="px-3 py-1 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition flex items-center gap-2 text-sm font-medium"
+                            className="sm:px-3 px-2 sm:py-1 py-1 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition flex items-center gap-2 text-sm font-medium"
                             title="Edit"
                           >
                             <svg
@@ -1363,12 +1363,12 @@ export default function OwnerDashboard() {
                                 clipRule="evenodd"
                               />
                             </svg>
-                            Edit
+                            <span className="hidden sm:inline">Edit</span>
                           </button>
 
                           <button
                             onClick={() => removeReporter(r._id)}
-                            className="px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 transition flex items-center gap-2 text-sm font-medium"
+                            className="sm:px-3 px-2 sm:py-1 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 transition flex items-center gap-2 text-sm font-medium"
                             title="Remove"
                           >
                             <svg
@@ -1383,7 +1383,7 @@ export default function OwnerDashboard() {
                                 clipRule="evenodd"
                               />
                             </svg>
-                            Remove
+                            <span className="hidden sm:inline">Remove</span>
                           </button>
                         </div>
                       </li>

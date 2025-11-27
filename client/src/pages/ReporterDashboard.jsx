@@ -1,6 +1,7 @@
 import { useEffect, useState, lazy, Suspense } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import ErrorBoundary from "../components/ErrorBoundary.jsx";
+import Modal from "../components/Modal.jsx";
 import { useAuth } from "../contexts/AuthContext.jsx";
 const LazyNewsForm = lazy(() => import("../components/NewsForm.jsx"));
 import { useToast } from "../contexts/ToastContext.jsx";
@@ -17,6 +18,7 @@ import {
   CheckCircle,
   Clock,
   Menu,
+  User,
 } from "lucide-react";
 import { useConfirm } from "../contexts/ConfirmContext.jsx";
 
@@ -67,8 +69,11 @@ const StatusPill = ({ status, approved }) => {
 
 export default function ReporterDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { authFetch, user, logout, promptLogout } = useAuth() || {};
+  const { authFetch, user, logout, promptLogout, refreshUser } =
+    useAuth() || {};
+  const { showToast } = useToast();
   const promptConfirm = useConfirm();
+  const [showProfile, setShowProfile] = useState(false);
   // keyboard shortcut: press 'm' to toggle mobile menu
   useEffect(() => {
     const onKey = (e) => {
@@ -82,7 +87,6 @@ export default function ReporterDashboard() {
       window.removeEventListener("toggleSidebar", onToggle);
     };
   }, []);
-  const { showToast } = useToast();
   const [news, setNews] = useState([]);
   const [editing, setEditing] = useState(null);
   const [categories, setCategories] = useState([]);
@@ -244,11 +248,32 @@ export default function ReporterDashboard() {
 
       <main className="flex-1 p-8">
         {/* Main Header */}
-        <div className="mb-6 border-b border-gray-200 pb-3">
+        <div className="mb-6 border-b border-gray-200 pb-3 flex items-center justify-between">
           <h1 className="text-3xl font-bold text-gray-800">
             Welcome, {user.name || "Reporter"}
           </h1>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={async () => {
+                try {
+                  await refreshUser?.();
+                } catch (e) {
+                  /* ignore */
+                }
+                setShowProfile(true);
+              }}
+              aria-label="Open profile"
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-gray-200 shadow-sm hover:shadow-md hover:bg-gray-50 transition"
+            >
+              <User className="h-5 w-5 text-gray-700" />
+              <span className="hidden sm:inline text-sm text-gray-700">
+                Profile
+              </span>
+            </button>
+          </div>
         </div>
+
+        {/* Profile is available via the Profile button (modal). */}
 
         {/* Summary cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -274,6 +299,40 @@ export default function ReporterDashboard() {
             bgColor="bg-white"
           />
         </div>
+        {/* Profile Modal */}
+        {showProfile && (
+          <Modal
+            title="Your Profile"
+            onClose={() => setShowProfile(false)}
+            actions={
+              <>
+                <button
+                  onClick={() => setShowProfile(false)}
+                  className="px-3 py-2 bg-gray-100 rounded hover:bg-gray-200"
+                >
+                  Close
+                </button>
+              </>
+            }
+          >
+            <div className="space-y-3">
+              <div className="text-sm text-gray-500">Name</div>
+              <div className="font-semibold text-gray-900">
+                {user.name || "-"}
+              </div>
+
+              <div className="text-sm text-gray-500">Email</div>
+              <div className="text-sm text-gray-700 break-words">
+                {user.email || "-"}
+              </div>
+
+              <div className="text-sm text-gray-500">Reporter ID</div>
+              <div className="text-sm font-mono text-gray-700 break-words">
+                {user.reporterId || "—"}
+              </div>
+            </div>
+          </Modal>
+        )}
 
         {/* Editor or List View Toggle */}
         <div className="flex justify-between items-center mb-4">
@@ -396,3 +455,21 @@ export default function ReporterDashboard() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -74,9 +74,31 @@ export function AuthProvider({ children }) {
     return apiFetch(path, { ...opts, token: currentToken });
   };
 
+  // Refresh current user from server (returns user or null)
+  const refreshUser = async () => {
+    const currentToken = token || localStorage.getItem("token");
+    if (!currentToken) return null;
+    try {
+      const me = await apiFetch("/api/auth/me", { token: currentToken });
+      setUser(me);
+      return me;
+    } catch (err) {
+      console.warn("refreshUser failed", err?.message || err);
+      return null;
+    }
+  };
+
   return (
     <AuthContext.Provider
-      value={{ user, token, login, logout, authFetch, promptLogout }}
+      value={{
+        user,
+        token,
+        login,
+        logout,
+        authFetch,
+        promptLogout,
+        refreshUser,
+      }}
     >
       {children}
       <ConfirmDialog

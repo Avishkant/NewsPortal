@@ -18,10 +18,21 @@ export const login = asyncHandler(async (req, res) => {
   if (!ok) return res.status(401).json({ message: "Invalid credentials" });
   res.json({
     token: genToken(user),
-    user: { id: user._id, name: user.name, email: user.email, role: user.role },
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      reporterId: user.reporterId || null,
+    },
   });
 });
 
+export const me = asyncHandler(async (req, res) => {
+  // `protect` middleware attaches the user (without password) to req.user
+  if (!req.user) return res.status(401).json({ message: "Not authorized" });
+  res.json(req.user);
+});
 export const register = asyncHandler(async (req, res) => {
   const { name, email, password } = req.body;
   if (!name || !email || !password)
@@ -38,6 +49,12 @@ export const register = asyncHandler(async (req, res) => {
   });
   res.status(201).json({
     token: genToken(u),
-    user: { id: u._id, name: u.name, email: u.email, role: u.role },
+    user: {
+      id: u._id,
+      name: u.name,
+      email: u.email,
+      role: u.role,
+      reporterId: u.reporterId || null,
+    },
   });
 });

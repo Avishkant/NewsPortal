@@ -2,6 +2,7 @@ import express from "express";
 import asyncHandler from "express-async-handler";
 
 import * as authController from "../controllers/authController.js";
+import { protect } from "../middleware/auth.js";
 import {
   loginValidator,
   registerValidator,
@@ -23,5 +24,7 @@ router.post(
   runValidation,
   asyncHandler(authController.register)
 );
+
+router.get("/me", protect, asyncHandler(authController.me));
 
 export default router;

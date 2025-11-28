@@ -2,7 +2,7 @@ import { useEffect, useState, lazy, Suspense } from "react";
 import { useLocation } from "react-router-dom";
 import { Link, useNavigate } from "react-router-dom";
 import ErrorBoundary from "../components/ErrorBoundary.jsx";
-import { apiFetch } from "../api.js";
+import API_BASE, { apiFetch } from "../api.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
 const LazyNewsForm = lazy(() => import("../components/NewsForm.jsx"));
 import { useToast } from "../contexts/ToastContext.jsx";
@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 // ConfirmDialog handled globally via AuthContext
 import { useConfirm } from "../contexts/ConfirmContext.jsx";
+import { useSite } from "../contexts/SiteContext.jsx";
 
 export default function OwnerDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -74,6 +75,7 @@ export default function OwnerDashboard() {
   const [loadError, setLoadError] = useState(null);
   const [editingCategory, setEditingCategory] = useState(null);
   const [editingDistrict, setEditingDistrict] = useState(null);
+  const [uploadingEditorImage, setUploadingEditorImage] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmOpts, setConfirmOpts] = useState(null);
   // logout confirmation handled by AuthContext.promptLogout()
@@ -87,6 +89,7 @@ export default function OwnerDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const navigate = useNavigate();
   const location = useLocation();
+  const { setSite } = useSite();
 
   // --- Utility Loaders (Unchanged) ---
   const loadReporters = async () => {
@@ -1238,19 +1241,123 @@ export default function OwnerDashboard() {
                   />
 
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Editor Image URL
+                    Phone
                   </label>
                   <input
-                    value={siteInfo?.editorImage || ""}
+                    value={siteInfo?.phone || ""}
                     onChange={(e) =>
                       setSiteInfo({
                         ...(siteInfo || {}),
-                        editorImage: e.target.value,
+                        phone: e.target.value,
                       })
                     }
-                    placeholder="https://...jpg"
+                    placeholder="+91 98765 43210"
                     className="w-full p-3 border border-gray-300 rounded-lg mb-3"
                   />
+
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    YouTube URL
+                  </label>
+                  <input
+                    value={siteInfo?.youtube || ""}
+                    onChange={(e) =>
+                      setSiteInfo({
+                        ...(siteInfo || {}),
+                        youtube: e.target.value,
+                      })
+                    }
+                    placeholder="https://youtube.com/.."
+                    className="w-full p-3 border border-gray-300 rounded-lg mb-3"
+                  />
+
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Instagram URL
+                  </label>
+                  <input
+                    value={siteInfo?.instagram || ""}
+                    onChange={(e) =>
+                      setSiteInfo({
+                        ...(siteInfo || {}),
+                        instagram: e.target.value,
+                      })
+                    }
+                    placeholder="https://instagram.com/.."
+                    className="w-full p-3 border border-gray-300 rounded-lg mb-3"
+                  />
+
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Facebook URL
+                  </label>
+                  <input
+                    value={siteInfo?.facebook || ""}
+                    onChange={(e) =>
+                      setSiteInfo({
+                        ...(siteInfo || {}),
+                        facebook: e.target.value,
+                      })
+                    }
+                    placeholder="https://facebook.com/.."
+                    className="w-full p-3 border border-gray-300 rounded-lg mb-3"
+                  />
+
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Editor Image URL
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={async (e) => {
+                        const f = e.target.files?.[0];
+                        if (!f) return;
+                        setUploadingEditorImage(true);
+                        try {
+                          const fd = new FormData();
+                          fd.append("image", f);
+                          const token = localStorage.getItem("token");
+                          const res = await fetch(
+                            new URL("/api/upload", API_BASE).toString(),
+                            {
+                              method: "POST",
+                              headers: token
+                                ? { Authorization: `Bearer ${token}` }
+                                : {},
+                              body: fd,
+                            }
+                          );
+                          const data = await res.json();
+                          if (!res.ok)
+                            throw new Error(
+                              data?.message || res.statusText || "Upload failed"
+                            );
+                          setSiteInfo({
+                            ...(siteInfo || {}),
+                            editorImage: data.url,
+                          });
+                          try {
+                            setSite &&
+                              setSite({
+                                ...(siteInfo || {}),
+                                editorImage: data.url,
+                              });
+                          } catch (err) {
+                            /* ignore */
+                          }
+                        } catch (err) {
+                          console.error("Editor image upload failed", err);
+                          // optionally show toast
+                        } finally {
+                          setUploadingEditorImage(false);
+                        }
+                      }}
+                      className="mb-0"
+                    />
+                    <div className="text-sm text-gray-600">
+                      {uploadingEditorImage
+                        ? "Uploading..."
+                        : "Upload an image (max 5MB)"}
+                    </div>
+                  </div>
                   {siteInfo?.editorImage && (
                     <img
                       src={siteInfo.editorImage}
@@ -1303,6 +1410,12 @@ export default function OwnerDashboard() {
                               message: "About page updated",
                             });
                             setSiteInfo(res);
+                            try {
+                              // update global site context so public pages refresh
+                              setSite && setSite(res);
+                            } catch (e) {
+                              /* ignore */
+                            }
                           } else {
                             showToast({ type: "success", message: "Saved" });
                           }

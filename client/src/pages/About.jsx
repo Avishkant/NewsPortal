@@ -1,100 +1,142 @@
 import { Link } from "react-router-dom";
+import { useSite } from "../contexts/SiteContext.jsx";
+import { Mail, Phone, Youtube, Instagram, Facebook } from "lucide-react";
 
 export default function About() {
+  const { site } = useSite();
+
+  // no local subscribe state (subscribe UI removed)
+
+  const info = site || {};
+  const editorImage = info?.editorImage || "/vite.svg";
+  const editorName = info?.editorName || "Editor Name";
+  const editorTitle = info?.editorTitle || "Editor-in-Chief";
+  const editorEmail = info?.editorEmail || "";
+  const phone = info?.phone || "";
+  const youtube = info?.youtube || "";
+  const instagram = info?.instagram || "";
+  const facebook = info?.facebook || "";
+  const mission = info?.mission || "";
+  const aboutHtml = info?.aboutHtml || "<p>No about content yet.</p>";
+
   return (
-    <div className="p-6 md:p-10 min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
-        <div className="p-6 md:p-10">
-          <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-4">
-            About Us
-          </h1>
-
-          <p className="text-gray-700 mb-6 text-sm md:text-base">
-            Welcome to our news portal — a local-first newsroom focused on
-            bringing timely, reliable and relevant updates to our readers in
-            Madhya Pradesh and beyond. We cover politics, business, health,
-            education, entertainment and community stories with a focus on
-            accuracy and context.
-          </p>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-            {/* Editor Card */}
-            <div className="md:col-span-1 flex flex-col items-center text-center">
+    <div className="p-6 md:p-12 min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
+      <div className="max-w-6xl mx-auto">
+        {/* Hero */}
+        <div className="bg-white rounded-2xl shadow-lg overflow-hidden mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 items-center gap-6 p-6 md:p-10">
+            <div className="flex items-center justify-center md:justify-start">
               <img
-                src="/vite.svg"
+                src={editorImage}
                 alt="Editor"
-                className="w-32 h-32 md:w-40 md:h-40 object-cover rounded-full shadow-md mb-4"
+                className="w-28 h-28 md:w-36 md:h-36 object-cover rounded-full shadow-lg"
               />
-              <h2 className="text-lg font-semibold text-gray-900">
-                Dipak Vishvakarma
-              </h2>
-              <p className="text-sm text-gray-600">Editor-in-Chief</p>
-              <p className="text-sm text-gray-500 mt-3">mpnetwork10news@gmail.com</p>
-              <div className="flex gap-3 mt-4">
-                <a
-                  href="https://twitter.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-3 py-1 bg-blue-600 text-white rounded-md text-sm"
-                >
-                  Twitter
-                </a>
-                <a
-                  href="https://facebook.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-3 py-1 bg-[#1877F2] text-white rounded-md text-sm"
-                >
-                  Facebook
-                </a>
+            </div>
+
+            <div className="md:col-span-2">
+              <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">
+                {editorName}
+              </h1>
+              <p className="text-sm text-gray-600 mb-3">{editorTitle}</p>
+              {mission ? (
+                <p className="text-gray-700 text-sm md:text-base">{mission}</p>
+              ) : (
+                <p className="text-gray-600">
+                  We are a local-first newsroom serving our community.
+                </p>
+              )}
+
+              {/* action buttons removed per design: no CTAs here */}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-6">
+            <div className="bg-white rounded-xl shadow p-6 prose max-w-none text-gray-700">
+              <h2 className="text-xl font-semibold text-gray-900">About</h2>
+              <div dangerouslySetInnerHTML={{ __html: aboutHtml }} />
+            </div>
+
+            <div className="bg-white rounded-xl shadow p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                Our values
+              </h3>
+              <ul className="list-disc list-inside text-gray-700 space-y-2">
+                <li>Accuracy and verification</li>
+                <li>Community-focused reporting</li>
+                <li>Transparency and corrections</li>
+              </ul>
+            </div>
+          </div>
+
+          <aside className="space-y-6">
+            <div className="bg-white rounded-xl shadow p-6 text-center">
+              <h4 className="text-sm text-gray-500 uppercase mb-2">Contact</h4>
+              <div className="flex flex-col items-center gap-2">
+                <div className="text-gray-900 font-semibold">{editorName}</div>
+                <div className="text-sm text-gray-600">{editorTitle}</div>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                {phone ? (
+                  <a
+                    href={`tel:${phone}`}
+                    className="flex items-center gap-3 justify-center text-sm text-gray-700 hover:text-gray-900"
+                  >
+                    <Phone className="w-4 h-4" /> <span>{phone}</span>
+                  </a>
+                ) : null}
+
+                {editorEmail ? (
+                  <a
+                    href={`mailto:${editorEmail}`}
+                    className="flex items-center gap-3 justify-center text-sm text-gray-700 hover:text-gray-900"
+                  >
+                    <Mail className="w-4 h-4" /> <span>{editorEmail}</span>
+                  </a>
+                ) : null}
+
+                <div className="flex items-center justify-center gap-4 mt-2">
+                  {youtube ? (
+                    <a
+                      href={youtube}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label="YouTube"
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      <Youtube className="w-6 h-6" />
+                    </a>
+                  ) : null}
+                  {instagram ? (
+                    <a
+                      href={instagram}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label="Instagram"
+                      className="text-pink-500 hover:text-pink-600"
+                    >
+                      <Instagram className="w-6 h-6" />
+                    </a>
+                  ) : null}
+                  {facebook ? (
+                    <a
+                      href={facebook}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label="Facebook"
+                      className="text-blue-600 hover:text-blue-700"
+                    >
+                      <Facebook className="w-6 h-6" />
+                    </a>
+                  ) : null}
+                </div>
               </div>
             </div>
 
-            {/* Mission / Values */}
-            <div className="md:col-span-2">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Our mission
-              </h3>
-              <p className="text-gray-700 mb-4 text-sm md:text-base">
-                We aim to be the trusted voice for local communities by
-                reporting with integrity, listening to readers, and supporting
-                civic conversation. Our editorial standards prioritize
-                verification, fairness, and clear sourcing so that you can rely
-                on our coverage.
-              </p>
-
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                What we publish
-              </h3>
-              <ul className="list-disc list-inside text-gray-700 mb-4 text-sm md:text-base">
-                <li>
-                  Local news and events across districts of Madhya Pradesh
-                </li>
-                <li>Investigative reports and explainers</li>
-                <li>Community features and human stories</li>
-                <li>Multimedia: photos, videos and on-the-ground reporting</li>
-              </ul>
-
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Get in touch
-              </h3>
-              <p className="text-gray-700 mb-4 text-sm md:text-base">
-                Want to send a tip, suggest a story, or ask about corrections?
-                Email our editorial desk at{" "}
-                <a className="text-blue-600" href="mailto:mpnetwork10news@gmail.com">
-                  mpnetwork10news@gmail.com
-                </a>
-                .
-              </p>
-
-              <Link
-                to="/news"
-                className="inline-block px-4 py-2 bg-[var(--primary)] text-white rounded-md font-medium"
-              >
-                Back to news
-              </Link>
-            </div>
-          </div>
+            {/* Subscribe section removed per request */}
+          </aside>
         </div>
       </div>
     </div>

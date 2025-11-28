@@ -45,7 +45,7 @@ export function ToastProvider({ children }) {
         ref={containerRef}
         aria-live="polite"
         aria-atomic="true"
-        className="fixed top-4 right-4 z-50 flex flex-col gap-2 w-80"
+        className="fixed top-4 right-4 z-[9999] flex flex-col gap-2 w-80"
       >
         {toasts.map((t) => (
           <div

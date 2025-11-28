@@ -15,6 +15,20 @@ router.get(
   })
 );
 
+// public: simple subscribe endpoint (mocked)
+router.post(
+  "/subscribe",
+  asyncHandler(async (req, res) => {
+    const body = req.body || {};
+    const email = String(body.email || "").trim();
+    if (!email) return res.status(400).json({ message: "Missing email" });
+    // In a real app, you'd persist this to a subscribers collection or
+    // forward to an email provider. For now we log and return success.
+    console.log("New subscription:", email);
+    res.json({ success: true, email });
+  })
+);
+
 // owner only: create or update site info
 router.put(
   "/",

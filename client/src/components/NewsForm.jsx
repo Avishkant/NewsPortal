@@ -834,14 +834,30 @@ export default function NewsForm({
           const data = JSON.parse(xhr.responseText);
           if (data?.url) {
             // Use quillInstanceRef.current for editor insertion
-            if (insertToEditor && quillInstanceRef.current) {
-              try {
-                const quill = quillInstanceRef.current;
-                const range = quill.getSelection(true) || { index: 0 };
-                quill.insertEmbed(range.index, "image", data.url);
-                quill.setSelection((range.index || 0) + 1);
-              } catch (err) {
-                console.error("Failed to insert image into editor", err);
+            if (insertToEditor) {
+              if (quillInstanceRef.current) {
+                try {
+                  const quill = quillInstanceRef.current;
+                  const range = quill.getSelection(true) || { index: 0 };
+                  quill.insertEmbed(range.index, "image", data.url);
+                  quill.setSelection((range.index || 0) + 1);
+                } catch (err) {
+                  console.error("Failed to insert image into editor", err);
+                }
+              } else {
+                // Fallback: no Quill instance available (contentEditable fallback)
+                // Append the image HTML to `content` so it appears in the editor.
+                try {
+                  setContent(
+                    (prev) =>
+                      (prev || "") + `<p><img src="${data.url}" alt=""/></p>`
+                  );
+                } catch (err) {
+                  console.error(
+                    "Failed to append image to content fallback",
+                    err
+                  );
+                }
               }
             } else {
               setImage(data.url);

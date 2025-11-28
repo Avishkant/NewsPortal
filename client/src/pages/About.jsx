@@ -26,7 +26,7 @@ export default function About() {
                 className="w-32 h-32 md:w-40 md:h-40 object-cover rounded-full shadow-md mb-4"
               />
               <h2 className="text-lg font-semibold text-gray-900">
-                Asha Verma
+                Dipak Vishvakarma
               </h2>
               <p className="text-sm text-gray-600">Editor-in-Chief</p>
               <p className="text-sm text-gray-500 mt-3">mpnetwork10news@gmail.com</p>

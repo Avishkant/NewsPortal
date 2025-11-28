@@ -88,6 +88,7 @@ export default function ReporterDashboard() {
     };
   }, []);
   const [news, setNews] = useState([]);
+  const [filter, setFilter] = useState("all");
   const [editing, setEditing] = useState(null);
   const [categories, setCategories] = useState([]);
   const [districts, setDistricts] = useState([]);
@@ -206,6 +207,19 @@ export default function ReporterDashboard() {
     (n) => n.status === "pending" || n.approved === false
   ).length;
 
+  const approvedCount = (news || []).filter(
+    (n) => n.status === "approved" && n.approved !== false
+  ).length;
+
+  const displayedNews = (news || []).filter((n) => {
+    if (filter === "all") return true;
+    if (filter === "pending")
+      return n.status === "pending" || n.approved === false;
+    if (filter === "approved")
+      return n.status === "approved" && n.approved !== false;
+    return true;
+  });
+
   return (
     <div className="flex min-h-screen bg-gray-50">
       {/* Sidebar Component */}
@@ -248,22 +262,24 @@ export default function ReporterDashboard() {
 
       <main className="flex-1 p-8">
         {/* Main Header */}
-        <div className="mb-6 border-b border-gray-200 pb-3 flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-gray-800">
-            Welcome, {user.name || "Reporter"}
-          </h1>
+        <div className="mb-6 border-b border-gray-200 pb-3 flex items-center justify-between flex-wrap">
+          <div className="min-w-0">
+            <h1 className="text-3xl font-bold text-gray-800 truncate">
+              Welcome, {user.name || "Reporter"}
+            </h1>
+          </div>
           <div className="flex items-center gap-2">
             <button
               onClick={async () => {
                 try {
                   await refreshUser?.();
-                } catch (e) {
+                } catch {
                   /* ignore */
                 }
                 setShowProfile(true);
               }}
               aria-label="Open profile"
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-gray-200 shadow-sm hover:shadow-md hover:bg-gray-50 transition"
+              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-gray-200 shadow-sm hover:shadow-md hover:bg-gray-50 transition flex-shrink-0"
             >
               <User className="h-5 w-5 text-gray-700" />
               <span className="hidden sm:inline text-sm text-gray-700">
@@ -335,11 +351,49 @@ export default function ReporterDashboard() {
         )}
 
         {/* Editor or List View Toggle */}
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-semibold text-gray-700">
-            {editing ? "Create/Edit Article" : "Your Articles"}
-          </h2>
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
+          <div className="w-full sm:w-auto min-w-0">
+            <h2 className="text-2xl font-semibold text-gray-700">
+              {editing ? "Create/Edit Article" : "Your Articles"}
+            </h2>
+            <div className="mt-2 sm:mt-0 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setFilter("all")}
+                className={`px-3 py-1 rounded ${
+                  filter === "all"
+                    ? "bg-[var(--primary)] text-white"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                All ({news.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilter("pending")}
+                className={`px-3 py-1 rounded ${
+                  filter === "pending"
+                    ? "bg-yellow-500 text-white"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                Pending ({pendingCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilter("approved")}
+                className={`px-3 py-1 rounded ${
+                  filter === "approved"
+                    ? "bg-green-600 text-white"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                Approved ({approvedCount})
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 w-full sm:w-auto">
             <button
               onClick={() => navigate("/news")}
               className="px-3 py-2 bg-gray-200 border border-gray-300 rounded hover:bg-gray-300 text-gray-800 transition"
@@ -395,7 +449,7 @@ export default function ReporterDashboard() {
                   to begin.
                 </p>
               ) : (
-                news.map((n) => {
+                displayedNews.map((n) => {
                   const isApproved =
                     n.status === "approved" && n.approved !== false;
                   return (
@@ -455,21 +509,3 @@ export default function ReporterDashboard() {
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

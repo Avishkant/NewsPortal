@@ -105,18 +105,10 @@ export default function NewsDetail() {
               animate={{ scale: 1 }}
               transition={{ delay: 0.2 }}
             >
-              <img
+              <LazyImage
                 src={imageUrl || "/vite.svg"}
                 alt={item.title}
                 className="w-full h-auto object-cover"
-                onError={(e) => {
-                  try {
-                    e.currentTarget.onerror = null;
-                    e.currentTarget.src = "/vite.svg";
-                  } catch (err) {
-                    /* ignore */
-                  }
-                }}
               />
             </motion.div>
           )}

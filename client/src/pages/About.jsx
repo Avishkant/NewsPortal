@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useSite } from "../contexts/SiteContext.jsx";
+import LazyImage from "../components/LazyImage.jsx";
 import { Mail, Phone, Youtube, Instagram, Facebook } from "lucide-react";
 
 export default function About() {
@@ -26,10 +27,11 @@ export default function About() {
         <div className="bg-white rounded-2xl shadow-lg overflow-hidden mb-8">
           <div className="grid grid-cols-1 md:grid-cols-3 items-center gap-6 p-6 md:p-10">
             <div className="flex items-center justify-center md:justify-start">
-              <img
+              <LazyImage
                 src={editorImage}
                 alt="Editor"
-                className="w-28 h-28 md:w-36 md:h-36 object-cover rounded-full shadow-lg"
+                className="w-28 h-28 md:w-36 md:h-36 rounded-full shadow-lg"
+                style={{ borderRadius: "9999px" }}
               />
             </div>
 

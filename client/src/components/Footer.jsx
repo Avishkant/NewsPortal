@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import logoSrc from "../assets/logo.jpg";
+import LazyImage from "./LazyImage.jsx";
 
 export default function Footer() {
   return (
@@ -7,7 +8,7 @@ export default function Footer() {
       <div className="max-w-6xl mx-auto px-4 py-8 sm:py-12 flex flex-col md:flex-row md:items-start md:justify-between gap-8">
         <div className="flex-1 min-w-0">
           <Link to="/" className="inline-block mb-3 flex items-center">
-            <img
+            <LazyImage
               src={logoSrc}
               alt="MP Network10 logo"
               className="w-10 h-10 object-contain mr-3"
@@ -87,7 +88,16 @@ export default function Footer() {
             © {new Date().getFullYear()} MP Network 10 News — All rights
             reserved.
           </div>
-          <div className="mt-2 sm:mt-0">Made with ❤️ by <a href="https://thinkcraftai.tech" target="_blank" rel="noopener noreferrer">ThinkCraftAI</a></div>
+          <div className="mt-2 sm:mt-0">
+            Made with ❤️ by{" "}
+            <a
+              href="https://thinkcraftai.tech"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              ThinkCraftAI
+            </a>
+          </div>
         </div>
       </div>
     </footer>

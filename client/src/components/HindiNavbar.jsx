@@ -1,5 +1,6 @@
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import logo from "../assets/logo.jpg";
+import LazyImage from "./LazyImage.jsx";
 import { Search, Menu, X, User, ChevronDown, Tag, MapPin } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext.jsx";
@@ -279,7 +280,7 @@ export default function HindiNavbar() {
             transition={{ duration: 0.5 }}
           >
             <Link to={dashboardLink}>
-              <img
+              <LazyImage
                 src={logo}
                 alt="लोगो"
                 className="h-12 md:h-16 w-auto object-contain transition duration-300 hover:scale-[1.05] transform"
@@ -444,7 +445,7 @@ export default function HindiNavbar() {
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-white">
               <div className="flex items-center gap-3">
-                <img
+                <LazyImage
                   src={logo}
                   alt="logo"
                   className="h-8 w-auto object-contain"

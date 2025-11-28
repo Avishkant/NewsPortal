@@ -683,6 +683,7 @@ import { useToast } from "../contexts/ToastContext.jsx";
 // Removed: import { useQuill } from "react-quilljs";
 // Removed: import "quill/dist/quill.snow.css";
 import { Image, X, UploadCloud, Loader2, Save, Send } from "lucide-react";
+import LazyImage from "./LazyImage.jsx";
 
 // We'll lazy-load a separate Quill editor component to avoid importing any
 // Quill-related code during server-side rendering. The actual editor lives
@@ -1153,7 +1154,7 @@ export default function NewsForm({
             </label>
           ) : (
             <div className="relative">
-              <img
+              <LazyImage
                 src={image}
                 alt="Featured Preview"
                 className="w-full h-40 md:h-48 lg:h-56 object-cover rounded-lg shadow-md"

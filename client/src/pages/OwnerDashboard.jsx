@@ -878,7 +878,7 @@ export default function OwnerDashboard() {
           },
           {
             key: "pending",
-            label: `Pending (${totalPending})`,
+            label: "Pending",
             onClick: () => setActiveTab("pending"),
             active: activeTab === "pending",
             icon: <Clock className="h-5 w-5" />,
@@ -1359,7 +1359,7 @@ export default function OwnerDashboard() {
                     </div>
                   </div>
                   {siteInfo?.editorImage && (
-                    <img
+                    <LazyImage
                       src={siteInfo.editorImage}
                       alt="editor"
                       className="w-28 h-28 object-cover rounded-full mt-2"
@@ -1444,7 +1444,7 @@ export default function OwnerDashboard() {
                   <h4 className="text-lg font-semibold mb-3">Preview</h4>
                   <div className="flex items-start gap-4">
                     <div>
-                      <img
+                      <LazyImage
                         src={siteInfo?.editorImage || "/vite.svg"}
                         alt="editor"
                         className="w-24 h-24 object-cover rounded-full"

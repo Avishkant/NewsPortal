@@ -21,7 +21,27 @@ const streamUpload = (fileBuffer) =>
 
 export const uploadImage = asyncHandler(async (req, res) => {
   if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+  // Defensive logging to help debug upload issues
+  try {
+    console.log("Upload attempt:", {
+      fieldname: req.file.fieldname,
+      originalname: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+    });
+  } catch (err) {
+    void err;
+  }
+
   const mimetype = req.file.mimetype || "";
+  // If multer produced a file but buffer is empty, return a clear error
+  if (!req.file.buffer || req.file.buffer.length === 0) {
+    console.warn("Upload failed: empty file buffer", {
+      originalname: req.file.originalname,
+      size: req.file.size,
+    });
+    return res.status(400).json({ message: "Empty file" });
+  }
   if (!mimetype.startsWith("image/")) {
     return res
       .status(400)

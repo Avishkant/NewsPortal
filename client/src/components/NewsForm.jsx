@@ -819,6 +819,20 @@ export default function NewsForm({
     xhr.open("POST", `${API_BASE}/api/upload`);
     if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
 
+    // Debug: log file info before sending, and prevent sending empty files
+    try {
+      console.log("Uploading file:", file?.name, file?.size, file?.type);
+      if (!file || file.size === 0) {
+        setUploading(false);
+        setUploadError("Empty file selected");
+        showToast({ type: "error", message: "Empty file selected" });
+        if (e.target) e.target.value = "";
+        return;
+      }
+    } catch (err) {
+      void err;
+    }
+
     xhr.upload.onprogress = (ev) => {
       if (ev.lengthComputable) {
         setProgress(Math.round((ev.loaded / ev.total) * 100));

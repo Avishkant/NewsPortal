@@ -1,24 +1,60 @@
 import React, { useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Bold,
+  Italic,
+  Underline,
+  Link,
+  Image,
+  Trash2,
+  Type,
+  Palette,
+  PaintBucket,
+  List,
+  ListOrdered,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Code,
+  Minus,
+  CheckCircle,
+} from "lucide-react"; // Using Lucide Icons for clarity
 
-// Lightweight contentEditable editor used as a safe fallback when Quill
-// or react-quill are not installed. This keeps the NewsForm usable without
-// requiring heavy editor dependencies and avoids Vite prebundle errors.
+// Define a palette for quick color selection
+const COLOR_PALETTE = [
+  "#000000",
+  "#D32F2F",
+  "#00B8D4",
+  "#6A1B9A",
+  "#388E3C",
+  "#424242",
+  "#FF9800",
+  "#4A148C",
+  "#0000FF",
+  "#FFFFFF",
+];
+
 export default function QuillEditor({
   initialContent,
   onContentChange,
   quillInstanceRef,
-  handleImageUploadClick,
+  handleImageUploadClick, // Assuming this is passed for image handling
 }) {
   const ref = useRef(null);
   const [boldActive, setBoldActive] = useState(false);
   const [italicActive, setItalicActive] = useState(false);
   const [underlineActive, setUnderlineActive] = useState(false);
-  const [fontFamily, setFontFamily] = useState("");
-  const [foreColor, setForeColor] = useState("");
-  const [backColor, setBackColor] = useState("");
+  const [fontFamily, setFontFamily] = useState("Arial");
+  const [foreColor, setForeColor] = useState("#000000");
+  const [backColor, setBackColor] = useState("#FFFFFF");
+
+  // Popover state management
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showBgPicker, setShowBgPicker] = useState(false);
+  const colorWrapperRef = useRef(null);
+  const bgWrapperRef = useRef(null);
 
+  // Preserve the Quill ref contract
   useEffect(() => {
     if (quillInstanceRef) quillInstanceRef.current = null;
     return () => {
@@ -26,15 +62,12 @@ export default function QuillEditor({
     };
   }, [quillInstanceRef]);
 
+  // Set initial content and focus caret
   useEffect(() => {
     try {
       if (ref.current && typeof initialContent === "string") {
         ref.current.innerHTML = initialContent;
       }
-      // eslint-disable-next-line no-empty
-    } catch {}
-    // After setting initial content, move caret to start of editor
-    try {
       if (ref.current) {
         const setCaretToStart = () => {
           try {
@@ -45,107 +78,85 @@ export default function QuillEditor({
             const sel = window.getSelection();
             sel.removeAllRanges();
             sel.addRange(range);
-          } catch {
-            // ignore
+          } catch (err) {
+            void err;
           }
         };
-        // Schedule after paint to ensure DOM ready
         setTimeout(setCaretToStart, 0);
       }
-    } catch {
-      // ignore
-    }
+    } catch {}
   }, [initialContent]);
 
-  // Update toolbar active states based on current selection / caret
-  useEffect(() => {
-    const updateActive = () => {
-      try {
-        if (!ref.current) return;
-        const sel = window.getSelection();
-        if (!sel || !sel.anchorNode) return;
-        const node =
+  // --- Command Execution & State Sync ---
+  const exec = (cmd, value = null) => {
+    try {
+      if (document && typeof document.execCommand === "function") {
+        document.execCommand(cmd, false, value);
+      }
+    } catch (err) {
+      console.warn("execCommand failed:", err);
+    }
+    // Notify parent and update active state
+    try {
+      onContentChange && onContentChange(ref.current?.innerHTML || "");
+      document.dispatchEvent(new Event("selectionchange"));
+    } catch (err) {
+      console.warn("onContentChange/dispatch failed:", err);
+    }
+  };
+
+  const updateActive = () => {
+    try {
+      if (!ref.current) return;
+      const sel = window.getSelection();
+      if (!sel || !sel.anchorNode) return;
+
+      // Update basic command states
+      setBoldActive(!!document.queryCommandState("bold"));
+      setItalicActive(!!document.queryCommandState("italic"));
+      setUnderlineActive(!!document.queryCommandState("underline"));
+
+      // Update color and font (using queryCommandValue is most reliable)
+      let f =
+        document.queryCommandValue("fontName") ||
+        window.getComputedStyle(
           sel.anchorNode.nodeType === 3
             ? sel.anchorNode.parentElement
-            : sel.anchorNode;
+            : sel.anchorNode
+        ).fontFamily ||
+        "";
+      setFontFamily(f.replace(/"/g, "").split(",")[0].trim());
+      setForeColor(
+        document.queryCommandValue("foreColor") ||
+          window.getComputedStyle(
+            sel.anchorNode.nodeType === 3
+              ? sel.anchorNode.parentElement
+              : sel.anchorNode
+          ).color ||
+          "#000000"
+      );
+      setBackColor(
+        document.queryCommandValue("hiliteColor") ||
+          window.getComputedStyle(
+            sel.anchorNode.nodeType === 3
+              ? sel.anchorNode.parentElement
+              : sel.anchorNode
+          ).backgroundColor ||
+          "#ffffff"
+      );
+    } catch (err) {
+      // console.warn("QuillEditor updateActive error:", err);
+    }
+  };
 
-        // basic command states
-        const isBold =
-          document.queryCommandState && document.queryCommandState("bold");
-        const isItalic =
-          document.queryCommandState && document.queryCommandState("italic");
-        const isUnderline =
-          document.queryCommandState && document.queryCommandState("underline");
-        setBoldActive(!!isBold);
-        setItalicActive(!!isItalic);
-        setUnderlineActive(!!isUnderline);
-
-        // font family and colors via commandValue or computed style
-        let f = "";
-        try {
-          f =
-            document.queryCommandValue &&
-            document.queryCommandValue("fontName");
-        } catch {
-          // ignore
-        }
-        if (!f) {
-          try {
-            f = window.getComputedStyle(node).fontFamily || "";
-          } catch {
-            f = "";
-          }
-        }
-        setFontFamily(f.replace(/"/g, ""));
-
-        let fc = "";
-        try {
-          fc =
-            document.queryCommandValue &&
-            document.queryCommandValue("foreColor");
-        } catch {
-          // ignore
-        }
-        if (!fc) {
-          try {
-            fc = window.getComputedStyle(node).color || "";
-          } catch {
-            fc = "";
-          }
-        }
-        setForeColor(fc || "");
-
-        let bc = "";
-        try {
-          bc =
-            document.queryCommandValue &&
-            document.queryCommandValue("hiliteColor");
-        } catch {
-          // ignore
-        }
-        if (!bc) {
-          try {
-            bc = window.getComputedStyle(node).backgroundColor || "";
-          } catch {
-            bc = "";
-          }
-        }
-        setBackColor(bc || "");
-      } catch (err) {
-        console.warn("QuillEditor updateActive error:", err);
-      }
-    };
-
-    document.addEventListener("selectionchange", updateActive);
-    // also update on clicks/keyup
+  useEffect(() => {
     const el = ref.current;
+    document.addEventListener("selectionchange", updateActive);
     if (el) {
       el.addEventListener("keyup", updateActive);
       el.addEventListener("mouseup", updateActive);
     }
-
-    // initial update
-    setTimeout(updateActive, 0);
+    setTimeout(updateActive, 0); // Initial update
 
     return () => {
       document.removeEventListener("selectionchange", updateActive);
@@ -154,288 +165,226 @@ export default function QuillEditor({
         el.removeEventListener("mouseup", updateActive);
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const exec = (cmd, value = null) => {
-    // Some browsers may not support execCommand, guard it
-    try {
-      if (document && typeof document.execCommand === "function") {
-        document.execCommand(cmd, false, value);
-      } else {
-        // Basic fallback: for bold/italic/underline, wrap selection
-        const sel = window.getSelection();
-        if (!sel || sel.rangeCount === 0) return;
-        const range = sel.getRangeAt(0);
-        const span = document.createElement("span");
-        if (cmd === "bold") span.style.fontWeight = "bold";
-        if (cmd === "italic") span.style.fontStyle = "italic";
-        if (cmd === "underline") span.style.textDecoration = "underline";
-        span.appendChild(range.extractContents());
-        range.insertNode(span);
+  // --- Popover and Cleanup Logic ---
+
+  useEffect(() => {
+    const onDocClick = (e) => {
+      const target = e.target;
+      if (
+        showColorPicker &&
+        colorWrapperRef.current &&
+        !colorWrapperRef.current.contains(target)
+      ) {
+        setShowColorPicker(false);
       }
-    } catch (err) {
-      console.warn("QuillEditor exec fallback failed:", err);
-    }
-    // Notify parent of content change
-    try {
-      onContentChange && onContentChange(ref.current?.innerHTML || "");
-    } catch (err) {
-      console.warn("QuillEditor onContentChange error:", err);
-    }
-    // update toolbar active state after exec
-    try {
-      const ev = new Event("selectionchange");
-      document.dispatchEvent(ev);
-    } catch (err) {
-      console.warn("QuillEditor dispatch selectionchange failed:", err);
-    }
+      if (
+        showBgPicker &&
+        bgWrapperRef.current &&
+        !bgWrapperRef.current.contains(target)
+      ) {
+        setShowBgPicker(false);
+      }
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") {
+        setShowColorPicker(false);
+        setShowBgPicker(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [showColorPicker, showBgPicker]);
+
+  // Handler functions
+  const handleColorSelect = (color) => {
+    exec("foreColor", color);
+    setShowColorPicker(false);
   };
-
-  const clearColorFromSelection = (isBackground = false) => {
-    try {
-      const sel = window.getSelection();
-      if (!sel || sel.rangeCount === 0) return;
-      const range = sel.getRangeAt(0);
-      const container =
-        range.commonAncestorContainer.nodeType === 3
-          ? range.commonAncestorContainer.parentElement
-          : range.commonAncestorContainer;
-
-      // Walk elements inside container and clear color styles for nodes intersecting the range
-      const els = container.querySelectorAll
-        ? container.querySelectorAll("*")
-        : [];
-      els.forEach((el) => {
-        try {
-          if (range.intersectsNode(el)) {
-            if (isBackground) el.style.backgroundColor = "";
-            else el.style.color = "";
-            if (!el.getAttribute("style")) el.removeAttribute("style");
-          }
-        } catch (err) {
-          void err;
-        }
-      });
-
-      // Also handle direct parent of text selection
-      const parent =
-        sel.anchorNode && sel.anchorNode.nodeType === 3
-          ? sel.anchorNode.parentElement
-          : null;
-      if (parent) {
-        if (isBackground) parent.style.backgroundColor = "";
-        else parent.style.color = "";
-        if (!parent.getAttribute("style")) parent.removeAttribute("style");
-      }
-
-      onContentChange && onContentChange(ref.current?.innerHTML || "");
-      try {
-        document.dispatchEvent(new Event("selectionchange"));
-      } catch (err) {
-        void err;
-      }
-    } catch (err) {
-      console.warn("clearColorFromSelection error:", err);
-    }
+  const handleBgSelect = (color) => {
+    exec("hiliteColor", color);
+    setShowBgPicker(false);
+  };
+  const handleResetColor = (isBackground) => {
+    isBackground
+      ? exec("hiliteColor", "#ffffff")
+      : exec("foreColor", "#000000");
+    isBackground ? setShowBgPicker(false) : setShowColorPicker(false);
   };
 
   const handleLink = () => {
-    try {
-      const url = window.prompt("Enter URL (including http://)");
-      if (url) exec("createLink", url);
-    } catch (err) {
-      console.warn("QuillEditor insert image fallback failed:", err);
-    }
+    const url = window.prompt("Enter URL (include https://)");
+    if (url) exec("createLink", url);
   };
 
   const handleImage = () => {
     if (typeof handleImageUploadClick === "function") {
       handleImageUploadClick();
     } else {
-      // No handler provided; as a fallback, prompt for an image URL
       const url = window.prompt("Image URL");
-      if (url && ref.current) {
-        const img = document.createElement("img");
-        img.src = url;
-        img.alt = "";
-        const sel = window.getSelection();
-        if (sel && sel.rangeCount) {
-          sel.getRangeAt(0).insertNode(img);
-        } else {
-          ref.current.appendChild(img);
-        }
-        onContentChange && onContentChange(ref.current.innerHTML);
+      if (url) {
+        exec("insertImage", url);
       }
     }
   };
 
-  return (
-    <div className="border rounded-lg bg-white text-left">
-      <div className="flex flex-wrap items-center gap-2 p-2 border-b bg-white">
-        <button
-          type="button"
-          onClick={() => exec("bold")}
-          className={`px-3 py-1 rounded-md text-sm font-semibold ${
-            boldActive ? "bg-gray-200" : "hover:bg-gray-50"
-          }`}
-          aria-pressed={boldActive}
-        >
-          B
-        </button>
-        <button
-          type="button"
-          onClick={() => exec("italic")}
-          className={`px-3 py-1 rounded-md text-sm font-semibold ${
-            italicActive ? "bg-gray-200" : "hover:bg-gray-50"
-          }`}
-          aria-pressed={italicActive}
-        >
-          I
-        </button>
-        <button
-          type="button"
-          onClick={() => exec("underline")}
-          className={`px-3 py-1 rounded-md text-sm font-semibold ${
-            underlineActive ? "bg-gray-200" : "hover:bg-gray-50"
-          }`}
-          aria-pressed={underlineActive}
-        >
-          U
-        </button>
-        <button
-          type="button"
-          onClick={handleLink}
-          className="px-3 py-1 rounded-md text-sm hover:bg-gray-50"
-        >
-          Link
-        </button>
-        <button
-          type="button"
-          onClick={handleImage}
-          className="px-3 py-1 rounded-md text-sm hover:bg-gray-50"
-        >
-          Image
-        </button>
+  const handleFormatCommand = (cmd) => {
+    exec(cmd);
+  };
 
+  // --- Render UI ---
+  return (
+    <div className="border border-gray-300 rounded-xl bg-white shadow-xl text-left">
+      {/* TOOLBAR */}
+      <div className="flex flex-wrap items-center gap-1.5 p-3 border-b border-gray-200 bg-gray-50 rounded-t-xl">
+        {/* Group 1: Basic Formatting (B, I, U) */}
+        <div className="flex border rounded-lg overflow-hidden border-gray-200">
+          <ToolButton
+            cmd="bold"
+            active={boldActive}
+            icon={Bold}
+            onClick={() => exec("bold")}
+          />
+          <ToolButton
+            cmd="italic"
+            active={italicActive}
+            icon={Italic}
+            onClick={() => exec("italic")}
+          />
+          <ToolButton
+            cmd="underline"
+            active={underlineActive}
+            icon={Underline}
+            onClick={() => exec("underline")}
+          />
+        </div>
+
+        {/* Group 2: Font/Block Style */}
         <select
           aria-label="Font family"
-          value={fontFamily || ""}
-          onChange={(e) => {
-            exec("fontName", e.target.value);
-            setFontFamily(e.target.value);
-          }}
-          className="px-2 py-1 border rounded bg-white text-sm"
+          value={fontFamily}
+          onChange={(e) => exec("fontName", e.target.value)}
+          className="px-2 py-1 border rounded-lg bg-white text-sm text-gray-700 h-9 focus:ring-gray-800"
         >
-          <option value="">Font</option>
           <option value="Arial">Arial</option>
           <option value="Georgia">Georgia</option>
           <option value="Times New Roman">Times New Roman</option>
-          <option value="Tahoma">Tahoma</option>
           <option value="Verdana">Verdana</option>
-          <option value="Courier New">Courier New</option>
+          <option value="monospace">Monospace</option>
         </select>
 
-        <div className="relative">
-          <button
-            type="button"
-            title="Text color"
-            onClick={() => setShowColorPicker((v) => !v)}
-            className="flex items-center gap-2 px-2 py-1 border rounded"
-          >
-            <span
-              className="w-3 h-3 inline-block border"
-              style={{ background: foreColor || "#000" }}
-            />
-            <span className="text-xs">A</span>
-          </button>
-          {showColorPicker && (
-            <div className="absolute z-50 mt-2 p-2 bg-white border rounded shadow-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    clearColorFromSelection(false);
-                    setForeColor("");
-                    setShowColorPicker(false);
-                  }}
-                  className="text-xs text-gray-600 hover:text-gray-900"
-                >
-                  Clear
-                </button>
-                <div className="flex-1" />
-              </div>
-              <div className="mt-0">
-                <input
-                  type="color"
-                  value={foreColor || "#000000"}
-                  onChange={(e) => {
-                    exec("foreColor", e.target.value);
-                    setForeColor(e.target.value);
-                    setShowColorPicker(false);
-                  }}
-                  className="w-full h-8 p-0 border rounded"
-                />
-              </div>
-            </div>
-          )}
+        <ToolButton
+          cmd="formatBlock"
+          value="blockquote"
+          icon={Code}
+          label="Code"
+          onClick={() => exec("formatBlock", "blockquote")}
+        />
+
+        {/* Group 3: Lists */}
+        <div className="flex border rounded-lg overflow-hidden border-gray-200">
+          <ToolButton
+            cmd="insertUnorderedList"
+            icon={List}
+            onClick={() => exec("insertUnorderedList")}
+          />
+          <ToolButton
+            cmd="insertOrderedList"
+            icon={ListOrdered}
+            onClick={() => exec("insertOrderedList")}
+          />
         </div>
 
-        <div className="relative">
-          <button
-            type="button"
-            title="Background color"
-            onClick={() => setShowBgPicker((v) => !v)}
-            className="flex items-center gap-2 px-2 py-1 border rounded"
-          >
-            <span
-              className="w-3 h-3 inline-block border"
-              style={{ background: backColor || "#fff" }}
-            />
-            <span className="text-xs">Bg</span>
-          </button>
-          {showBgPicker && (
-            <div className="absolute z-50 mt-2 p-2 bg-white border rounded shadow-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    clearColorFromSelection(true);
-                    setBackColor("");
-                    setShowBgPicker(false);
-                  }}
-                  className="text-xs text-gray-600 hover:text-gray-900"
-                >
-                  Clear
-                </button>
-                <div className="flex-1" />
-              </div>
-              <div className="mt-0">
-                <input
-                  type="color"
-                  value={backColor || "#ffffff"}
-                  onChange={(e) => {
-                    try {
-                      exec("hiliteColor", e.target.value);
-                    } catch {
-                      exec("backColor", e.target.value);
-                    }
-                    setBackColor(e.target.value);
-                    setShowBgPicker(false);
-                  }}
-                  className="w-full h-8 p-0 border rounded"
-                />
-              </div>
-            </div>
-          )}
+        {/* Group 4: Alignment */}
+        <div className="flex border rounded-lg overflow-hidden border-gray-200">
+          <ToolButton
+            cmd="justifyLeft"
+            icon={AlignLeft}
+            onClick={() => exec("justifyLeft")}
+          />
+          <ToolButton
+            cmd="justifyCenter"
+            icon={AlignCenter}
+            onClick={() => exec("justifyCenter")}
+          />
+          <ToolButton
+            cmd="justifyRight"
+            icon={AlignRight}
+            onClick={() => exec("justifyRight")}
+          />
         </div>
+
+        {/* Group 5: Color Pickers */}
+        <div className="relative flex items-center gap-1.5">
+          {/* Text Color Picker */}
+          <div ref={colorWrapperRef}>
+            <ToolButton
+              type="button"
+              title={`Text color: ${foreColor}`}
+              icon={Palette}
+              style={{ color: foreColor }}
+              onClick={() => setShowColorPicker((v) => !v)}
+            />
+            <AnimatePresence>
+              {showColorPicker && (
+                <ColorPickerPopover
+                  onSelect={handleColorSelect}
+                  onReset={() => handleResetColor(false)}
+                  currentColor={foreColor}
+                />
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Background Color Picker */}
+          <div ref={bgWrapperRef}>
+            <ToolButton
+              type="button"
+              title={`Background color: ${backColor}`}
+              icon={PaintBucket}
+              style={{ color: backColor }}
+              onClick={() => setShowBgPicker((v) => !v)}
+            />
+            <AnimatePresence>
+              {showBgPicker && (
+                <ColorPickerPopover
+                  onSelect={handleBgSelect}
+                  onReset={() => handleResetColor(true)}
+                  currentColor={backColor}
+                  isBackground={true}
+                />
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+
+        {/* Group 6: Links and Media */}
+        <ToolButton cmd="createLink" icon={Link} onClick={handleLink} />
+        <ToolButton cmd="insertImage" icon={Image} onClick={handleImage} />
+
+        {/* Group 7: Cleanup */}
+        <ToolButton
+          cmd="removeFormat"
+          icon={Trash2}
+          onClick={() => exec("removeFormat")}
+          title="Clear Formatting"
+        />
       </div>
+
+      {/* EDITOR AREA */}
       <div
         ref={ref}
         contentEditable
         tabIndex={0}
         suppressContentEditableWarning
-        className="p-2 min-h-[250px] md:min-h-[400px] prose max-w-none text-left"
-        style={{ outline: "none", whiteSpace: "pre-wrap" }}
+        className="p-4 min-h-[400px] prose max-w-none text-left focus:ring-0"
+        style={{ outline: "none", whiteSpace: "pre-wrap", cursor: "text" }}
         onInput={(e) =>
           onContentChange && onContentChange(e.currentTarget.innerHTML)
         }
@@ -443,3 +392,109 @@ export default function QuillEditor({
     </div>
   );
 }
+
+// --- Reusable Toolbar Button Component ---
+const ToolButton = ({
+  cmd,
+  value,
+  icon: Icon,
+  active,
+  onClick,
+  title,
+  label,
+  style,
+}) => {
+  const isActive =
+    active ||
+    (document.queryCommandEnabled(cmd) && document.queryCommandState(cmd));
+  return (
+    <motion.button
+      type="button"
+      title={title || label || cmd}
+      onClick={onClick}
+      className={`p-2 rounded transition duration-150 ${
+        isActive
+          ? "bg-gray-200 text-gray-900"
+          : "hover:bg-gray-100 text-gray-700"
+      }`}
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      style={style}
+    >
+      <Icon className="w-4 h-4" />
+    </motion.button>
+  );
+};
+
+// --- Reusable Color Picker Popover Component ---
+const ColorPickerPopover = ({
+  onSelect,
+  onReset,
+  currentColor,
+  isBackground = false,
+}) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.8, originY: 0 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.8 }}
+      transition={{ duration: 0.15 }}
+      className="absolute z-50 mt-2 p-2 bg-white border border-gray-300 rounded-lg shadow-xl"
+      style={{
+        left: isBackground ? "auto" : 0,
+        right: isBackground ? 0 : "auto",
+      }} // Position popover neatly
+    >
+      <div className="flex justify-between items-center mb-2">
+        <span className="text-xs font-medium text-gray-700">
+          {isBackground ? "Background" : "Text"} Color
+        </span>
+        <button
+          type="button"
+          onClick={onReset}
+          className="inline-flex items-center gap-2 px-2 py-1 text-xs font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md shadow-sm"
+        >
+          <CheckCircle className="w-4 h-4 text-gray-700" />
+          <span>Reset</span>
+        </button>
+      </div>
+
+      {/* Color Swatches */}
+      <div className="grid grid-cols-5 gap-1.5">
+        {COLOR_PALETTE.map((color) => (
+          <motion.button
+            key={color}
+            type="button"
+            onClick={() => onSelect(color)}
+            className="w-6 h-6 rounded-full border border-gray-300 transition"
+            style={{ backgroundColor: color }}
+            whileHover={{ scale: 1.1 }}
+          >
+            {currentColor &&
+              currentColor.toLowerCase() === color.toLowerCase() && (
+                <CheckCircle
+                  className="w-4 h-4 mx-auto"
+                  style={{
+                    color:
+                      color === "#ffffff" || color === "rgb(255, 255, 255)"
+                        ? "#000"
+                        : "#fff",
+                  }}
+                />
+              )}
+          </motion.button>
+        ))}
+      </div>
+
+      {/* Native Color Picker (Fallback/Custom) */}
+      <div className="mt-2">
+        <input
+          type="color"
+          value={currentColor || (isBackground ? "#ffffff" : "#000000")}
+          onChange={(e) => onSelect(e.target.value)}
+          className="w-full h-8 p-0 border rounded-lg cursor-pointer"
+        />
+      </div>
+    </motion.div>
+  );
+};

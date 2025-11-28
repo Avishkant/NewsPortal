@@ -7,6 +7,7 @@ import { useAuth } from "../contexts/AuthContext.jsx";
 const LazyNewsForm = lazy(() => import("../components/NewsForm.jsx"));
 import { useToast } from "../contexts/ToastContext.jsx";
 import Modal from "../components/Modal.jsx";
+import Pagination from "../components/Pagination.jsx";
 
 import Sidebar from "../components/Sidebar.jsx";
 import {
@@ -47,14 +48,29 @@ export default function OwnerDashboard() {
     };
   }, []);
   const [reporters, setReporters] = useState([]);
+  const [reporterTotal, setReporterTotal] = useState(0);
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [reporterEdit, setReporterEdit] = useState(null);
   const [news, setNews] = useState([]);
+  const [totalNews, setTotalNews] = useState(0);
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
+  const [loadingNews, setLoadingNews] = useState(false);
+  const [totalPending, setTotalPending] = useState(0);
+  const [pendingItems, setPendingItems] = useState([]);
+  const [deletionRequestsCount, setDeletionRequestsCount] = useState(0);
+  const [deletionRequestsPreview, setDeletionRequestsPreview] = useState([]);
   const [editingNews, setEditingNews] = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
   const [categories, setCategories] = useState([]);
+  const [categoryTotal, setCategoryTotal] = useState(0);
   const [districts, setDistricts] = useState([]);
   const [siteInfo, setSiteInfo] = useState(null);
+  // pagination for reporters and categories
+  const [reporterPage, setReporterPage] = useState(1);
+  const [reporterPerPage, setReporterPerPage] = useState(10);
+  const [categoryPage, setCategoryPage] = useState(1);
+  const [categoryPerPage, setCategoryPerPage] = useState(10);
   const [loadError, setLoadError] = useState(null);
   const [editingCategory, setEditingCategory] = useState(null);
   const [editingDistrict, setEditingDistrict] = useState(null);
@@ -75,31 +91,93 @@ export default function OwnerDashboard() {
   // --- Utility Loaders (Unchanged) ---
   const loadReporters = async () => {
     try {
-      const rs = await authFetch("/api/reporters");
-      setReporters(rs || []);
+      const params = new URLSearchParams();
+      params.set("page", String(reporterPage || 1));
+      params.set("limit", String(reporterPerPage || 10));
+      const rs = await authFetch(`/api/reporters?${params.toString()}`);
+      if (!rs) {
+        setReporters([]);
+        setReporterTotal(0);
+      } else if (Array.isArray(rs)) {
+        // backward compatible: server may return array
+        setReporters(rs);
+        setReporterTotal(rs.length);
+      } else if (Array.isArray(rs.items)) {
+        setReporters(rs.items);
+        setReporterTotal(Number(rs.total) || rs.items.length);
+        if (rs.page) setReporterPage(Number(rs.page));
+        if (rs.limit) setReporterPerPage(Number(rs.limit));
+      } else {
+        setReporters([]);
+        setReporterTotal(0);
+      }
     } catch (err) {
       console.error("Failed to load reporters", err);
       setReporters([]);
+      setReporterTotal(0);
     }
   };
 
-  const loadNews = async () => {
+  const loadNews = async (opts = {}) => {
+    if (!authFetch) return;
+    setLoadingNews(true);
     try {
-      const all = await authFetch("/api/news");
-      setNews(all || []);
+      const p = opts.page || page || 1;
+      const lim = opts.limit || perPage || 10;
+      const params = new URLSearchParams();
+      params.set("page", String(p));
+      params.set("limit", String(lim));
+      if (filterCategory) params.set("category", filterCategory);
+      if (filterStatus) params.set("status", filterStatus);
+      if (searchQuery) params.set("q", searchQuery);
+
+      const resp = await authFetch(`/api/news?${params.toString()}`);
+      if (!resp) {
+        setNews([]);
+        setTotalNews(0);
+      } else if (Array.isArray(resp)) {
+        setNews(resp);
+        setTotalNews(resp.length);
+      } else if (Array.isArray(resp.items)) {
+        setNews(resp.items);
+        setTotalNews(Number(resp.total) || resp.items.length);
+      } else {
+        setNews([]);
+        setTotalNews(0);
+      }
     } catch (err) {
       console.error("Failed to load news", err);
       setNews([]);
+    } finally {
+      setLoadingNews(false);
     }
   };
 
   const loadCategories = async () => {
     try {
-      const cats = await authFetch("/api/categories");
-      setCategories(cats || []);
+      const params = new URLSearchParams();
+      params.set("page", String(categoryPage || 1));
+      params.set("limit", String(categoryPerPage || 10));
+      const cats = await authFetch(`/api/categories?${params.toString()}`);
+      if (!cats) {
+        setCategories([]);
+        setCategoryTotal(0);
+      } else if (Array.isArray(cats)) {
+        setCategories(cats);
+        setCategoryTotal(cats.length);
+      } else if (Array.isArray(cats.items)) {
+        setCategories(cats.items);
+        setCategoryTotal(Number(cats.total) || cats.items.length);
+        if (cats.page) setCategoryPage(Number(cats.page));
+        if (cats.limit) setCategoryPerPage(Number(cats.limit));
+      } else {
+        setCategories([]);
+        setCategoryTotal(0);
+      }
     } catch (err) {
       console.error("Failed to load categories", err);
       setCategories([]);
+      setCategoryTotal(0);
     }
   };
 
@@ -129,7 +207,6 @@ export default function OwnerDashboard() {
       try {
         await Promise.all([
           loadReporters(),
-          loadNews(),
           loadCategories(),
           loadDistricts(),
           loadSiteInfo(),
@@ -138,9 +215,70 @@ export default function OwnerDashboard() {
         console.error("OwnerDashboard initialization failed", err);
         setLoadError(err?.message || "Failed to load dashboard data");
       }
+      // fetch initial paginated news and summaries
+      try {
+        await loadNews({ page: 1, limit: perPage });
+      } catch (err) {
+        console.warn("Initial paginated news load failed", err);
+      }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search, user]);
+
+  // reload paginated news when pagination or filters change
+  useEffect(() => {
+    if (!user) return;
+    loadNews();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, page, perPage, filterCategory, filterStatus, searchQuery]);
+
+  // reload reporters when paging changes
+  useEffect(() => {
+    if (!user) return;
+    loadReporters();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, reporterPage, reporterPerPage]);
+
+  // reload categories when paging changes
+  useEffect(() => {
+    if (!user) return;
+    loadCategories();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, categoryPage, categoryPerPage]);
+
+  // fetch summary counts and previews
+  useEffect(() => {
+    if (!user || !authFetch) return;
+    (async () => {
+      try {
+        const [allResp, pendingResp, pendingPreviewResp, delReqResp] =
+          await Promise.all([
+            authFetch(`/api/news?page=1&limit=1`),
+            authFetch(`/api/news?page=1&limit=1&status=pending`),
+            authFetch(`/api/news?page=1&limit=5&status=pending`),
+            authFetch(`/api/news/deletion-requests`),
+          ]);
+        setTotalNews(Number(allResp?.total) || 0);
+        setTotalPending(Number(pendingResp?.total) || 0);
+        setPendingItems(
+          Array.isArray(pendingPreviewResp?.items)
+            ? pendingPreviewResp.items
+            : Array.isArray(pendingPreviewResp)
+            ? pendingPreviewResp
+            : []
+        );
+        setDeletionRequestsCount(
+          Array.isArray(delReqResp) ? delReqResp.length : 0
+        );
+        setDeletionRequestsPreview(
+          Array.isArray(delReqResp) ? delReqResp.slice(0, 5) : []
+        );
+      } catch (err) {
+        console.warn("Failed to load news summaries", err);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const { showToast } = useToast();
 
@@ -628,13 +766,28 @@ export default function OwnerDashboard() {
     }
   };
 
-  const totalPending = (news || []).filter(
-    (n) => n.status === "pending" || n.approved === false
-  ).length;
+  // When using server-side paging, `reporters` and `categories` contain current page items.
+  // Use `reporterTotal` and `categoryTotal` for totals/counts and keep page bounds in range.
+  useEffect(() => {
+    const totalPages = Math.max(
+      1,
+      Math.ceil((reporterTotal || 0) / reporterPerPage || 1)
+    );
+    if (reporterPage > totalPages) setReporterPage(totalPages);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reporterTotal, reporterPerPage]);
 
-  const totalDeletionRequests = (news || []).filter(
-    (n) => n.deletionRequested
-  ).length;
+  useEffect(() => {
+    const totalPages = Math.max(
+      1,
+      Math.ceil((categoryTotal || 0) / categoryPerPage || 1)
+    );
+    if (categoryPage > totalPages) setCategoryPage(totalPages);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoryTotal, categoryPerPage]);
+
+  // totals now come from server-side counts
+  // `totalPending` and `deletionRequestsCount` are populated via effects
 
   const handleDeletionRequest = async (id, approve) => {
     if (!id) return;
@@ -789,15 +942,9 @@ export default function OwnerDashboard() {
           </h1>
 
           <div className="flex justify-end mb-6 gap-2">
-            {/* <button
-            onClick={() => navigate(-1)}
-            className="px-3 py-2 bg-white border rounded hover:bg-gray-100"
-          >
-            Return
-          </button> */}
             <Link
               to="/news"
-              className="px-3 py-2 bg-white border rounded hover:bg-gray-100"
+              className="px-3 py-2 bg-white border rounded hover:bg-gray-100 flex items-center"
             >
               Home
             </Link>
@@ -827,7 +974,7 @@ export default function OwnerDashboard() {
                     Total News
                   </div>
                   <div className="text-4xl font-extrabold text-gray-900">
-                    {news?.length || 0}
+                    {totalNews || 0}
                   </div>
                 </div>
 
@@ -892,40 +1039,35 @@ export default function OwnerDashboard() {
                 <Clock className="h-6 w-6 mr-2" /> Pending News for Review
               </h3>
               <div className="space-y-3">
-                {news
-                  .filter((n) => n.status === "pending" || n.approved === false)
-                  .slice(0, 5)
-                  .map((n) => (
-                    <div
-                      key={n._id}
-                      className="p-4 bg-white rounded-lg shadow-md border-l-4 border-amber-500 flex justify-between items-center transition hover:shadow-lg hover:bg-amber-50"
-                    >
-                      <div>
-                        <div className="font-medium text-gray-900">
-                          {n.title}
-                        </div>
-                        <div className="text-sm text-[var(--muted)]">
-                          {n.category} — by {n.author?.name}
-                        </div>
-                      </div>
-                      <div className="space-x-2 flex items-center">
-                        <button
-                          onClick={() => approveNews(n._id)}
-                          className="px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 transition flex items-center gap-2 text-sm font-medium"
-                          title="Approve"
-                        >
-                          <Check className="h-4 w-4" /> Approve
-                        </button>
-                        <button
-                          onClick={() => removeNews(n._id)}
-                          className="px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 transition flex items-center gap-2 text-sm font-medium"
-                          title="Delete"
-                        >
-                          <Trash className="h-4 w-4" /> Delete
-                        </button>
+                {pendingItems.map((n) => (
+                  <div
+                    key={n._id}
+                    className="p-4 bg-white rounded-lg shadow-md border-l-4 border-amber-500 flex justify-between items-center transition hover:shadow-lg hover:bg-amber-50"
+                  >
+                    <div>
+                      <div className="font-medium text-gray-900">{n.title}</div>
+                      <div className="text-sm text-[var(--muted)]">
+                        {n.category} — by {n.author?.name}
                       </div>
                     </div>
-                  ))}
+                    <div className="space-x-2 flex items-center">
+                      <button
+                        onClick={() => approveNews(n._id)}
+                        className="px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 transition flex items-center gap-2 text-sm font-medium"
+                        title="Approve"
+                      >
+                        <Check className="h-4 w-4" /> Approve
+                      </button>
+                      <button
+                        onClick={() => removeNews(n._id)}
+                        className="px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 transition flex items-center gap-2 text-sm font-medium"
+                        title="Delete"
+                      >
+                        <Trash className="h-4 w-4" /> Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
               {totalPending > 5 && (
                 <button
@@ -939,54 +1081,49 @@ export default function OwnerDashboard() {
           )}
 
           {/* Quick Access: Deletion Requests for Owner Review */}
-          {activeTab === "overview" && totalDeletionRequests > 0 && (
+          {activeTab === "overview" && deletionRequestsCount > 0 && (
             <section className="mb-8">
               <h3 className="text-2xl font-semibold mb-4 text-red-600 flex items-center">
                 <Trash className="h-6 w-6 mr-2" /> Deletion Requests
               </h3>
               <div className="space-y-3">
-                {news
-                  .filter((n) => n.deletionRequested)
-                  .slice(0, 5)
-                  .map((n) => (
-                    <div
-                      key={n._id}
-                      className="p-4 bg-white rounded-lg shadow-md border-l-4 border-red-400 flex justify-between items-center transition hover:shadow-lg"
-                    >
-                      <div>
-                        <div className="font-medium text-gray-900">
-                          {n.title}
-                        </div>
-                        <div className="text-sm text-[var(--muted)]">
-                          by {n.author?.name} — requested{" "}
-                          {new Date(n.deletionRequestedAt).toLocaleString()}
-                        </div>
-                      </div>
-                      <div className="space-x-2 flex items-center">
-                        <button
-                          onClick={() => handleDeletionRequest(n._id, true)}
-                          className="px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 transition flex items-center gap-2 text-sm font-medium"
-                          title="Approve Deletion"
-                        >
-                          <Check className="h-4 w-4" /> Approve
-                        </button>
-                        <button
-                          onClick={() => handleDeletionRequest(n._id, false)}
-                          className="px-3 py-1 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition flex items-center gap-2 text-sm font-medium"
-                          title="Reject Deletion"
-                        >
-                          <X className="h-4 w-4" /> Reject
-                        </button>
+                {deletionRequestsPreview.map((n) => (
+                  <div
+                    key={n._id}
+                    className="p-4 bg-white rounded-lg shadow-md border-l-4 border-red-400 flex justify-between items-center transition hover:shadow-lg"
+                  >
+                    <div>
+                      <div className="font-medium text-gray-900">{n.title}</div>
+                      <div className="text-sm text-[var(--muted)]">
+                        by {n.author?.name} — requested{" "}
+                        {new Date(n.deletionRequestedAt).toLocaleString()}
                       </div>
                     </div>
-                  ))}
+                    <div className="space-x-2 flex items-center">
+                      <button
+                        onClick={() => handleDeletionRequest(n._id, true)}
+                        className="px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 transition flex items-center gap-2 text-sm font-medium"
+                        title="Approve Deletion"
+                      >
+                        <Check className="h-4 w-4" /> Approve
+                      </button>
+                      <button
+                        onClick={() => handleDeletionRequest(n._id, false)}
+                        className="px-3 py-1 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition flex items-center gap-2 text-sm font-medium"
+                        title="Reject Deletion"
+                      >
+                        <X className="h-4 w-4" /> Reject
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-              {totalDeletionRequests > 5 && (
+              {deletionRequestsCount > 5 && (
                 <button
                   onClick={() => setActiveTab("all")}
                   className="mt-4 text-red-600 hover:text-red-800 font-medium transition"
                 >
-                  View all {totalDeletionRequests} deletion requests &rarr;
+                  View all {deletionRequestsCount} deletion requests &rarr;
                 </button>
               )}
             </section>
@@ -1317,10 +1454,10 @@ export default function OwnerDashboard() {
 
                 {/* Reporters List Card */}
                 <div className="p-6 bg-white rounded-xl shadow-lg">
-                  <h4 className="text-xl font-medium mb-4 border-b border-gray-200 pb-2 text-gray-900">
-                    Reporter List ({reporters.length})
+                  <h4 className="text-xl font-medium mb-2 border-b border-gray-200 pb-2 text-gray-900">
+                    Reporter List ({reporterTotal})
                   </h4>
-                  <ul className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+                  <ul className="space-y-3 pr-2">
                     {reporters.map((r) => (
                       <li
                         key={r._id}
@@ -1338,7 +1475,6 @@ export default function OwnerDashboard() {
                           </div>
                         </div>
                         <div className="flex gap-2 items-center flex-shrink-0">
-                          {/* Buttons with hover scale effect */}
                           <button
                             onClick={() => startEditReporter(r)}
                             className="sm:px-3 px-2 sm:py-1 py-1 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition flex items-center gap-2 text-sm font-medium"
@@ -1381,6 +1517,21 @@ export default function OwnerDashboard() {
                       </li>
                     ))}
                   </ul>
+
+                  {reporterTotal > 0 && (
+                    <div className="mt-4 flex justify-end">
+                      <Pagination
+                        page={reporterPage}
+                        perPage={reporterPerPage}
+                        total={reporterTotal}
+                        onPageChange={(p) => setReporterPage(p)}
+                        onPerPageChange={(lim) => {
+                          setReporterPerPage(lim);
+                          setReporterPage(1);
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             </section>
@@ -1545,6 +1696,22 @@ export default function OwnerDashboard() {
                   </div>
                 ))}
               </div>
+              {/* Pagination for All/Pending lists - moved to bottom of list */}
+              {(activeTab === "all" || activeTab === "pending") &&
+                totalNews > 0 && (
+                  <div className="mt-6 flex justify-end">
+                    <Pagination
+                      page={page}
+                      perPage={perPage}
+                      total={totalNews}
+                      onPageChange={(p) => setPage(p)}
+                      onPerPageChange={(lim) => {
+                        setPerPage(lim);
+                        setPage(1);
+                      }}
+                    />
+                  </div>
+                )}
             </section>
           )}
 
@@ -1564,6 +1731,9 @@ export default function OwnerDashboard() {
               </div>
 
               <div className="p-6 bg-white rounded-xl shadow-lg max-w-lg">
+                <h4 className="text-xl font-medium mb-2 border-b border-gray-200 pb-2 text-gray-900">
+                  Categories ({categoryTotal})
+                </h4>
                 <ul className="space-y-3">
                   {categories.map((c) => (
                     <li
@@ -1597,6 +1767,21 @@ export default function OwnerDashboard() {
                     </li>
                   ))}
                 </ul>
+
+                {categoryTotal > 0 && (
+                  <div className="mt-4 flex justify-end">
+                    <Pagination
+                      page={categoryPage}
+                      perPage={categoryPerPage}
+                      total={categoryTotal}
+                      onPageChange={(p) => setCategoryPage(p)}
+                      onPerPageChange={(lim) => {
+                        setCategoryPerPage(lim);
+                        setCategoryPage(1);
+                      }}
+                    />
+                  </div>
+                )}
               </div>
             </section>
           )}

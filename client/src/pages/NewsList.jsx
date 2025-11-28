@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext.jsx";
 import { apiFetch } from "../api.js";
 import NewsCard from "../components/NewsCard.jsx"; // Assuming NewsCard is styled
+import Pagination from "../components/Pagination.jsx";
 import { motion } from "framer-motion";
 import { FaNewspaper, FaTachometerAlt } from "react-icons/fa";
 
@@ -32,15 +33,23 @@ export default function NewsList() {
   const [district, setDistrict] = useState("");
   const { user } = useAuth() || {};
   const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
+  const [total, setTotal] = useState(0);
   const location = useLocation();
+  const navigate = useNavigate();
 
   // Sync category/district from URL query params
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const cat = params.get("category") || "";
     const dist = params.get("district") || "";
+    const p = Number(params.get("page") || 1) || 1;
+    const lim = Number(params.get("limit") || 10) || 10;
     setCategory(cat);
     setDistrict(dist);
+    setPage(p);
+    setPerPage(lim);
     // optionally you could store the query in state if needed
     // setSearch(q);
   }, [location.search]);
@@ -52,15 +61,35 @@ export default function NewsList() {
     const cat = params.get("category") || "";
     const dist = params.get("district") || "";
     const searchQ = params.get("q") || "";
-    let q = "";
-    if (cat) q += `category=${encodeURIComponent(cat)}`;
-    if (dist) q += `${q ? "&" : ""}district=${encodeURIComponent(dist)}`;
-    if (searchQ) q += `${q ? "&" : ""}q=${encodeURIComponent(searchQ)}`;
+    const p = Number(params.get("page") || page || 1) || 1;
+    const lim = Number(params.get("limit") || perPage || 10) || 10;
+    let q = `page=${p}&limit=${lim}`;
+    if (cat) q += `&category=${encodeURIComponent(cat)}`;
+    if (dist) q += `&district=${encodeURIComponent(dist)}`;
+    if (searchQ) q += `&q=${encodeURIComponent(searchQ)}`;
     const qs = q ? `?${q}` : "";
     apiFetch(`/api/news${qs}`)
-      .then((data) => setItems(data || []))
+      .then((data) => {
+        if (!data) {
+          setItems([]);
+          setTotal(0);
+          return;
+        }
+        if (Array.isArray(data)) {
+          setItems(data);
+          setTotal(data.length);
+          return;
+        }
+        if (Array.isArray(data.items)) {
+          setItems(data.items);
+          setTotal(Number(data.total) || data.items.length);
+          return;
+        }
+        setItems([]);
+        setTotal(0);
+      })
       .finally(() => setLoading(false));
-  }, [category, district, location.search]);
+  }, [location.search]);
 
   const dashboardLink = user?.role === "owner" ? "/owner" : "/reporter";
 
@@ -113,6 +142,26 @@ export default function NewsList() {
             </motion.div>
           ))}
         </motion.div>
+      )}
+      {total > 0 && (
+        <div className="max-w-7xl mx-auto mt-6">
+          <Pagination
+            page={page}
+            perPage={perPage}
+            total={total}
+            onPageChange={(p) => {
+              const params = new URLSearchParams(location.search);
+              params.set("page", String(p));
+              navigate({ search: params.toString() });
+            }}
+            onPerPageChange={(lim) => {
+              const params = new URLSearchParams(location.search);
+              params.set("limit", String(lim));
+              params.set("page", "1");
+              navigate({ search: params.toString() });
+            }}
+          />
+        </div>
       )}
     </div>
   );

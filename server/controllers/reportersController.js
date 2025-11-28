@@ -5,8 +5,17 @@ import User from "../models/User.js";
 import Counter from "../models/Counter.js";
 
 export const listReporters = asyncHandler(async (req, res) => {
-  const users = await User.find({ role: "reporter" }).select("-password");
-  res.json(users);
+  // support pagination: page, limit
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const limit = Math.max(1, parseInt(req.query.limit, 10) || 25);
+  const filter = { role: "reporter" };
+  const total = await User.countDocuments(filter);
+  const items = await User.find(filter)
+    .select("-password")
+    .sort({ name: 1 })
+    .skip((page - 1) * limit)
+    .limit(limit);
+  res.json({ items, total, page, limit });
 });
 
 export const createReporter = asyncHandler(async (req, res) => {

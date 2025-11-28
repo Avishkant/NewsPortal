@@ -2,8 +2,16 @@ import asyncHandler from "express-async-handler";
 import Category from "../models/Category.js";
 
 export const listCategories = asyncHandler(async (req, res) => {
-  const items = await Category.find({}).sort({ name: 1 });
-  res.json(items);
+  // support pagination: page, limit
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const limit = Math.max(1, parseInt(req.query.limit, 10) || 25);
+  const filter = {};
+  const total = await Category.countDocuments(filter);
+  const items = await Category.find(filter)
+    .sort({ name: 1 })
+    .skip((page - 1) * limit)
+    .limit(limit);
+  res.json({ items, total, page, limit });
 });
 
 export const createCategory = asyncHandler(async (req, res) => {

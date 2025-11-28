@@ -7,6 +7,7 @@ const LazyNewsForm = lazy(() => import("../components/NewsForm.jsx"));
 import { useToast } from "../contexts/ToastContext.jsx";
 import Sidebar from "../components/Sidebar.jsx";
 import { motion, AnimatePresence } from "framer-motion";
+import Pagination from "../components/Pagination.jsx";
 import {
   FileText,
   Plus,
@@ -92,14 +93,27 @@ export default function ReporterDashboard() {
   const [editing, setEditing] = useState(null);
   const [categories, setCategories] = useState([]);
   const [districts, setDistricts] = useState([]);
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [totalAll, setTotalAll] = useState(0);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [approvedCount, setApprovedCount] = useState(0);
   const navigate = useNavigate();
 
-  const load = async () => {
+  const load = async (opts = {}) => {
+    if (!authFetch) return;
+    setLoading(true);
     try {
-      const mine = await authFetch("/api/news/mine");
-      if (!Array.isArray(mine)) {
-        console.error("Unexpected /api/news/mine response:", mine);
-        const msg = mine?.message || String(mine || "");
+      const q = new URLSearchParams();
+      q.set("page", String(opts.page || page || 1));
+      q.set("limit", String(opts.limit || perPage || 10));
+      q.set("filter", String(opts.filter || filter || "all"));
+      const resp = await authFetch(`/api/news/mine?${q.toString()}`);
+      if (!resp || !Array.isArray(resp.items)) {
+        console.error("Unexpected /api/news/mine response:", resp);
+        const msg = resp?.message || String(resp || "");
         showToast({
           type: "error",
           message: msg || "Failed to load your news",
@@ -108,42 +122,73 @@ export default function ReporterDashboard() {
           logout && logout();
         }
         setNews([]);
+        setTotal(0);
         return;
       }
-      setNews(mine);
+      setNews(resp.items);
+      setTotal(Number(resp.total) || 0);
+      // sync page/perPage from server response
+      if (resp.page) setPage(Number(resp.page));
+      if (resp.limit) setPerPage(Number(resp.limit));
     } catch (err) {
       console.error("Failed to load news", err);
+      showToast({ type: "error", message: "Failed to load your news" });
+    } finally {
+      setLoading(false);
     }
   };
 
   // logout confirmation handled centrally via AuthContext.promptLogout()
 
+  // load categories/districts once when user becomes available
   useEffect(() => {
     if (!user) return;
     (async () => {
-      await Promise.all([
-        load(),
-        (async () => {
-          try {
-            const cats = await authFetch("/api/categories");
-            setCategories(Array.isArray(cats) ? cats : []);
-          } catch (err) {
-            console.warn(
-              "ReporterDashboard: failed to load categories",
-              err?.message || err
-            );
-          }
-          try {
-            const d = await authFetch("/api/districts");
-            setDistricts(Array.isArray(d) ? d : []);
-          } catch (err) {
-            console.warn(
-              "ReporterDashboard: failed to load districts",
-              err?.message || err
-            );
-          }
-        })(),
-      ]);
+      try {
+        const cats = await authFetch("/api/categories");
+        setCategories(Array.isArray(cats) ? cats : []);
+      } catch (err) {
+        console.warn(
+          "ReporterDashboard: failed to load categories",
+          err?.message || err
+        );
+      }
+      try {
+        const d = await authFetch("/api/districts");
+        setDistricts(Array.isArray(d) ? d : []);
+      } catch (err) {
+        console.warn(
+          "ReporterDashboard: failed to load districts",
+          err?.message || err
+        );
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  // load paginated news whenever user, page, perPage or filter changes
+  useEffect(() => {
+    if (!user) return;
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, page, perPage, filter]);
+
+  // fetch summary counts (total, pending, approved)
+  useEffect(() => {
+    if (!user || !authFetch) return;
+    (async () => {
+      try {
+        const [allResp, pendingResp, approvedResp] = await Promise.all([
+          authFetch(`/api/news/mine?page=1&limit=1&filter=all`),
+          authFetch(`/api/news/mine?page=1&limit=1&filter=pending`),
+          authFetch(`/api/news/mine?page=1&limit=1&filter=approved`),
+        ]);
+        setTotalAll(Number(allResp?.total) || 0);
+        setPendingCount(Number(pendingResp?.total) || 0);
+        setApprovedCount(Number(approvedResp?.total) || 0);
+      } catch (err) {
+        console.warn("Failed to load news summary counts", err);
+      }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
@@ -203,22 +248,10 @@ export default function ReporterDashboard() {
     );
   }
 
-  const pendingCount = (news || []).filter(
-    (n) => n.status === "pending" || n.approved === false
-  ).length;
+  // use server-provided counts for summary; `news` already reflects current filter/page
+  const displayedNews = news || [];
 
-  const approvedCount = (news || []).filter(
-    (n) => n.status === "approved" && n.approved !== false
-  ).length;
-
-  const displayedNews = (news || []).filter((n) => {
-    if (filter === "all") return true;
-    if (filter === "pending")
-      return n.status === "pending" || n.approved === false;
-    if (filter === "approved")
-      return n.status === "approved" && n.approved !== false;
-    return true;
-  });
+  // server-side pagination in use; `displayedNews` contains current page items
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -234,7 +267,7 @@ export default function ReporterDashboard() {
           },
           {
             key: "create",
-            label: "Create New",
+            label: "Create News",
             onClick: () => setEditing({}),
             icon: <Plus className="h-4 w-4" />,
             active: editing !== null,
@@ -292,29 +325,31 @@ export default function ReporterDashboard() {
         {/* Profile is available via the Profile button (modal). */}
 
         {/* Summary cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <DashboardCard
-            title="Total Submitted"
-            value={news?.length || 0}
-            icon={FileText}
-            colorClass="text-gray-800"
-            bgColor="bg-white"
-          />
-          <DashboardCard
-            title="Pending Approval"
-            value={pendingCount}
-            icon={Clock}
-            colorClass="text-yellow-600"
-            bgColor="bg-white"
-          />
-          <DashboardCard
-            title="Approved Articles"
-            value={news.length - pendingCount}
-            icon={CheckCircle}
-            colorClass="text-green-600"
-            bgColor="bg-white"
-          />
-        </div>
+        {!editing && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <DashboardCard
+              title="Total Submitted"
+              value={totalAll}
+              icon={FileText}
+              colorClass="text-gray-800"
+              bgColor="bg-white"
+            />
+            <DashboardCard
+              title="Pending Approval"
+              value={pendingCount}
+              icon={Clock}
+              colorClass="text-yellow-600"
+              bgColor="bg-white"
+            />
+            <DashboardCard
+              title="Approved Articles"
+              value={approvedCount}
+              icon={CheckCircle}
+              colorClass="text-green-600"
+              bgColor="bg-white"
+            />
+          </div>
+        )}
         {/* Profile Modal */}
         {showProfile && (
           <Modal
@@ -351,57 +386,68 @@ export default function ReporterDashboard() {
         )}
 
         {/* Editor or List View Toggle */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
-          <div className="w-full sm:w-auto min-w-0">
-            <h2 className="text-2xl font-semibold text-gray-700">
-              {editing ? "Create/Edit Article" : "Your Articles"}
-            </h2>
-            <div className="mt-2 sm:mt-0 flex items-center gap-2">
+        {!editing && (
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
+            <div className="w-full sm:w-auto min-w-0">
+              <h2 className="text-2xl font-semibold text-gray-700">
+                {editing ? "Create/Edit Article" : "Your Articles"}
+              </h2>
+              <div className="mt-2 sm:mt-0 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilter("all");
+                    setPage(1);
+                  }}
+                  className={`px-3 py-1 rounded ${
+                    filter === "all"
+                      ? "bg-[var(--primary)] text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  All ({totalAll})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilter("pending");
+                    setPage(1);
+                  }}
+                  className={`px-3 py-1 rounded ${
+                    filter === "pending"
+                      ? "bg-yellow-500 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  Pending ({pendingCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilter("approved");
+                    setPage(1);
+                  }}
+                  className={`px-3 py-1 rounded ${
+                    filter === "approved"
+                      ? "bg-green-600 text-white"
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  Approved ({approvedCount})
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 w-full sm:w-auto">
               <button
-                type="button"
-                onClick={() => setFilter("all")}
-                className={`px-3 py-1 rounded ${
-                  filter === "all"
-                    ? "bg-[var(--primary)] text-white"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
+                onClick={() => navigate("/news")}
+                className="px-3 py-2 bg-gray-200 border border-gray-300 rounded hover:bg-gray-300 text-gray-800 transition"
               >
-                All ({news.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilter("pending")}
-                className={`px-3 py-1 rounded ${
-                  filter === "pending"
-                    ? "bg-yellow-500 text-white"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                Pending ({pendingCount})
-              </button>
-              <button
-                type="button"
-                onClick={() => setFilter("approved")}
-                className={`px-3 py-1 rounded ${
-                  filter === "approved"
-                    ? "bg-green-600 text-white"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                Approved ({approvedCount})
+                <Home className="h-4 w-4 inline mr-1" /> View Public Site
               </button>
             </div>
           </div>
-
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-            <button
-              onClick={() => navigate("/news")}
-              className="px-3 py-2 bg-gray-200 border border-gray-300 rounded hover:bg-gray-300 text-gray-800 transition"
-            >
-              <Home className="h-4 w-4 inline mr-1" /> View Public Site
-            </button>
-          </div>
-        </div>
+        )}
 
         {/* --- Form/Editor Area --- */}
         <AnimatePresence mode="wait">
@@ -443,9 +489,11 @@ export default function ReporterDashboard() {
             className="bg-white shadow-lg rounded-xl p-6 border border-gray-200"
           >
             <div className="space-y-3 divide-y divide-gray-100">
-              {news.length === 0 ? (
+              {loading ? (
+                <p className="text-center text-gray-500 py-4">Loading…</p>
+              ) : totalAll === 0 ? (
                 <p className="text-center text-gray-500 py-4">
-                  You have not submitted any articles yet. Click 'Create News'
+                  You have not submitted any articles yet. Click 'create news'
                   to begin.
                 </p>
               ) : (
@@ -455,9 +503,10 @@ export default function ReporterDashboard() {
                   return (
                     <motion.div
                       key={n._id}
-                      className="p-3 hover:bg-gray-50 rounded-lg transition"
+                      className="p-3 hover:bg-gray-50 rounded-lg transition cursor-pointer"
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
+                      onClick={() => navigate(`/news/${n._id}`)}
                     >
                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                         <div className="min-w-0 flex-1">
@@ -474,7 +523,10 @@ export default function ReporterDashboard() {
                           <StatusPill status={n.status} approved={n.approved} />
 
                           <button
-                            onClick={() => setEditing(n)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditing(n);
+                            }}
                             className="px-3 py-1 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition text-sm font-medium whitespace-nowrap"
                             title="Edit Article"
                           >
@@ -482,7 +534,10 @@ export default function ReporterDashboard() {
                           </button>
 
                           <button
-                            onClick={() => remove(n._id, isApproved)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              remove(n._id, isApproved);
+                            }}
                             title={
                               isApproved
                                 ? "Delete Approved Article"
@@ -501,6 +556,17 @@ export default function ReporterDashboard() {
                     </motion.div>
                   );
                 })
+              )}
+              {total > 0 && (
+                <div className="mt-4 flex justify-end">
+                  <Pagination
+                    page={page}
+                    perPage={perPage}
+                    total={total}
+                    onPageChange={setPage}
+                    onPerPageChange={setPerPage}
+                  />
+                </div>
               )}
             </div>
           </motion.section>

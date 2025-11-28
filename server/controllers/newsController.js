@@ -94,6 +94,14 @@ export async function listNews(req, res) {
     }
   }
 
+  // STATUS filter (e.g., pending, approved, rejected)
+  if (req.query.status) {
+    const s = String(req.query.status || "")
+      .trim()
+      .toLowerCase();
+    if (s) filter.status = s;
+  }
+
   // SEARCH
   if (req.query.q) {
     const q = String(req.query.q || "").trim();
@@ -113,9 +121,18 @@ export async function listNews(req, res) {
     }
   }
 
+  // pagination
+  const page = Math.max(1, parseInt(req.query.page || "1", 10));
+  const limit = Math.max(1, parseInt(req.query.limit || "10", 10));
+  const skip = (page - 1) * limit;
+
+  const total = await News.countDocuments(filter);
+
   const items = await News.find(filter)
     .populate("author", "name email")
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit);
   // Try to ensure images are valid. To avoid making too many Cloudinary admin
   // API calls for large lists, validate only the first N items; for the rest
   // we fall back to constructing best-effort URLs.
@@ -175,15 +192,33 @@ export async function listNews(req, res) {
     console.error("Failed to build cloudinary URLs for listNews", err);
   }
 
-  res.json(items);
+  res.json({ items, total, page, limit });
 }
 
 // Return news authored by authenticated user
 export async function listMine(req, res) {
-  const items = await News.find({ author: req.user._id })
+  const filter = { author: req.user._id };
+  // optional filter by status: all | pending | approved
+  const clientFilter = String(req.query.filter || "all").toLowerCase();
+  if (clientFilter === "pending") {
+    filter.$or = [{ status: "pending" }, { approved: false }];
+  } else if (clientFilter === "approved") {
+    filter.status = "approved";
+    filter.approved = { $ne: false };
+  }
+  const page = Math.max(1, parseInt(req.query.page || "1", 10));
+  const limit = Math.max(1, parseInt(req.query.limit || "10", 10));
+  const skip = (page - 1) * limit;
+
+  const total = await News.countDocuments(filter);
+
+  const items = await News.find(filter)
     .populate("author", "name email")
-    .sort({ createdAt: -1 });
-  res.json(items);
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit);
+
+  res.json({ items, total, page, limit });
 }
 
 // Headlines endpoint

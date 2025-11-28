@@ -129,7 +129,9 @@ export default function OwnerDashboard() {
       params.set("limit", String(lim));
       if (filterCategory) params.set("category", filterCategory);
       if (filterStatus) params.set("status", filterStatus);
-      if (searchQuery) params.set("q", searchQuery);
+      // allow overriding query via opts.q for immediate searches (Enter/button)
+      if (opts.q !== undefined) params.set("q", String(opts.q || ""));
+      else if (searchQuery) params.set("q", searchQuery);
 
       const resp = await authFetch(`/api/news?${params.toString()}`);
       if (!resp) {
@@ -165,11 +167,29 @@ export default function OwnerDashboard() {
       } else if (Array.isArray(cats)) {
         setCategories(cats);
         setCategoryTotal(cats.length);
+        try {
+          window.dispatchEvent(
+            new CustomEvent("categories-updated", {
+              detail: { categories: cats },
+            })
+          );
+        } catch (e) {
+          /* ignore */
+        }
       } else if (Array.isArray(cats.items)) {
         setCategories(cats.items);
         setCategoryTotal(Number(cats.total) || cats.items.length);
         if (cats.page) setCategoryPage(Number(cats.page));
         if (cats.limit) setCategoryPerPage(Number(cats.limit));
+        try {
+          window.dispatchEvent(
+            new CustomEvent("categories-updated", {
+              detail: { categories: cats.items },
+            })
+          );
+        } catch (e) {
+          /* ignore */
+        }
       } else {
         setCategories([]);
         setCategoryTotal(0);
@@ -1553,9 +1573,70 @@ export default function OwnerDashboard() {
                   <input
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={async (e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        const v = e.target.value;
+                        setSearchQuery(v);
+                        setPage(1);
+                        try {
+                          await loadNews({ page: 1, limit: perPage, q: v });
+                        } catch (err) {
+                          /* ignore */
+                        }
+                        if (typeof window !== "undefined" && window.scrollTo) {
+                          try {
+                            const header = document.querySelector("header");
+                            const offset = header
+                              ? header.getBoundingClientRect().height
+                              : 0;
+                            window.scrollTo({
+                              top: Math.max(0, offset),
+                              behavior: "smooth",
+                            });
+                          } catch {
+                            window.scrollTo({ top: 0, behavior: "smooth" });
+                          }
+                        }
+                      }
+                    }}
                     placeholder="Search title, content, or author..."
-                    className="p-2 pl-10 border border-gray-300 rounded-lg w-full md:w-80 focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition bg-white text-gray-900 placeholder-gray-500"
+                    className="p-2 pl-10 border border-gray-300 rounded-lg flex-1 md:w-80 focus:border-[var(--primary)] focus:ring-1 focus:ring-[var(--primary)] transition bg-white text-gray-900 placeholder-gray-500"
                   />
+                  {/* Small-screen search button: allows explicit trigger when space is limited */}
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setPage(1);
+                      try {
+                        await loadNews({
+                          page: 1,
+                          limit: perPage,
+                          q: searchQuery,
+                        });
+                      } catch (err) {
+                        /* ignore */
+                      }
+                      if (typeof window !== "undefined" && window.scrollTo) {
+                        try {
+                          const header = document.querySelector("header");
+                          const offset = header
+                            ? header.getBoundingClientRect().height
+                            : 0;
+                          window.scrollTo({
+                            top: Math.max(0, offset),
+                            behavior: "smooth",
+                          });
+                        } catch {
+                          window.scrollTo({ top: 0, behavior: "smooth" });
+                        }
+                      }
+                    }}
+                    className="ml-2 md:hidden px-3 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-teal-600 transition"
+                    aria-label="Search"
+                  >
+                    <Search className="h-4 w-4" />
+                  </button>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">

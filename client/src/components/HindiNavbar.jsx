@@ -86,6 +86,30 @@ export default function HindiNavbar() {
     }
     setMobileSearchOpen(false);
     setMobileMenuOpen(false);
+
+    // After navigating, ensure the results are visible below any sticky headers.
+    // Use a small timeout to allow the new route to render and layout to settle.
+    try {
+      setTimeout(() => {
+        try {
+          const header = document.querySelector("header");
+          // account for any additional fixed nav that may be positioned under header
+          const nav = document.querySelector("nav");
+          const headerH = header ? header.getBoundingClientRect().height : 0;
+          const navH = nav ? nav.getBoundingClientRect().height : 0;
+          const offset = Math.max(0, headerH + navH - 4); // small overlap guard
+          if (typeof window !== "undefined" && window.scrollTo) {
+            window.scrollTo({ top: offset, behavior: "smooth" });
+          }
+        } catch (e) {
+          if (typeof window !== "undefined" && window.scrollTo) {
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }
+        }
+      }, 120);
+    } catch {
+      /* ignore */
+    }
   };
 
   const toggleMobileSearch = () => {
@@ -116,9 +140,13 @@ export default function HindiNavbar() {
     (async () => {
       try {
         const cats = await apiFetch("/api/categories");
-        if (mounted && Array.isArray(cats) && cats.length > 0) {
-          // Map to use name as key for cleaner URLs
+        if (!mounted) return;
+        if (Array.isArray(cats) && cats.length > 0) {
           setCategories(cats.map((c) => ({ key: c.name, label: c.name })));
+        } else if (cats && Array.isArray(cats.items) && cats.items.length > 0) {
+          setCategories(
+            cats.items.map((c) => ({ key: c.name, label: c.name }))
+          );
         }
       } catch (err) {
         console.warn("Failed to load categories", err.message || err);
@@ -137,6 +165,23 @@ export default function HindiNavbar() {
     return () => {
       mounted = false;
     };
+  }, []);
+
+  // Listen for global category updates (owner portal emits this event)
+  useEffect(() => {
+    const onUpdated = (e) => {
+      try {
+        const payload = e?.detail?.categories;
+        if (!payload) return;
+        if (Array.isArray(payload) && payload.length > 0) {
+          setCategories(payload.map((c) => ({ key: c.name, label: c.name })));
+        }
+      } catch {
+        /* ignore */
+      }
+    };
+    window.addEventListener("categories-updated", onUpdated);
+    return () => window.removeEventListener("categories-updated", onUpdated);
   }, []);
 
   // 2. Accessibility/State Management (ESC key, Scroll Lock, Focus Trap)
@@ -350,8 +395,12 @@ export default function HindiNavbar() {
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.3 }}
-            className="lg:hidden absolute w-full border-b border-gray-700 overflow-hidden"
-            style={{ backgroundColor: PRIMARY_VIVID_RED }}
+            className="lg:hidden fixed left-0 right-0 overflow-hidden"
+            style={{
+              backgroundColor: PRIMARY_VIVID_RED,
+              top: headerHeight,
+              zIndex: 70,
+            }}
             aria-hidden={!mobileSearchOpen}
           >
             <div className="px-4 py-3 flex items-center gap-2">

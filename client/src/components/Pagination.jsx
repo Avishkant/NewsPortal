@@ -21,7 +21,13 @@ export default function Pagination({
       onPageChange(p);
     } finally {
       if (typeof window !== "undefined" && window.scrollTo) {
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        try {
+          const header = document.querySelector("header");
+          const offset = header ? header.getBoundingClientRect().height : 0;
+          window.scrollTo({ top: Math.max(0, offset), behavior: "smooth" });
+        } catch {
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
       }
     }
   };

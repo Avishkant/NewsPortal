@@ -100,7 +100,7 @@ export default function NewsDetail() {
           {/* Featured Image */}
           {imageUrl && (
             <motion.div
-              className="mt-6 mb-4 w-full h-48 md:h-64 lg:h-80 overflow-hidden rounded-lg shadow-md"
+              className="mt-6 mb-4 w-full overflow-hidden rounded-lg shadow-md"
               initial={{ scale: 0.95 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.2 }}
@@ -108,7 +108,7 @@ export default function NewsDetail() {
               <img
                 src={imageUrl || "/vite.svg"}
                 alt={item.title}
-                className="w-full h-full object-cover"
+                className="w-full h-auto object-cover"
                 onError={(e) => {
                   try {
                     e.currentTarget.onerror = null;
@@ -229,11 +229,19 @@ export default function NewsDetail() {
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 24 24"
-                  className="h-4 w-4"
-                  fill="currentColor"
-                  aria-hidden
+                  className="h-4 w-4 shrink-0"
+                  aria-hidden="true"
+                  role="img"
                 >
-                  <path d="M23.5 6.2s-.2-1.7-.8-2.4c-.8-.9-1.7-.9-2.1-1-3-.2-7.5-.2-7.5-.2s-4.6 0-7.5.2c-.4 0-1.3.1-2.1 1C1.7 4.5 1.5 6.2 1.5 6.2S1 8.2 1 10.2v1.6c0 2 .5 4 5.5 4.1 1.8.1 7.5.2 7.5.2s4.6 0 7.5-.2c.4 0 1.3-.1 2.1-1 .6-.7.8-2.4.8-2.4s.5-2 .5-4.1v-1.6c0-2.1-.5-4.1-.5-4.1zM9.8 15.4V8.6l6.2 3.4-6.2 3.4z" />
+                  <rect
+                    x="1"
+                    y="4"
+                    width="22"
+                    height="16"
+                    rx="4"
+                    fill="#FF0000"
+                  />
+                  <path d="M10 8l6 4-6 4z" fill="#fff" />
                 </svg>
                 <span className="hidden sm:inline">Watch on YouTube</span>
               </a>

@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion"; // Import motion
 import { Clock, Tag, Edit } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext.jsx";
+import { formatDate } from "../utils/formatDate.js";
 
 export default function NewsCard({ item }) {
   const navigate = useNavigate();
@@ -111,8 +112,7 @@ export default function NewsCard({ item }) {
           {/* Action and Date */}
           <div className="flex items-center gap-3">
             <span className="text-xs text-gray-500 flex items-center gap-1">
-              <Clock className="h-3 w-3" />{" "}
-              {new Date(item.createdAt).toLocaleDateString()}
+              <Clock className="h-3 w-3" /> {formatDate(item.createdAt)}
             </span>
             <Link
               to={`/news/${item._id}`}

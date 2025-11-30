@@ -64,7 +64,7 @@ export default function Header() {
                 About
               </NavItem>
               <NavItem
-                to="/contact"
+                to="/about#contact"
                 className="text-slate-200 hover:text-white"
               >
                 Contact
@@ -178,7 +178,7 @@ export default function Header() {
                   About
                 </Link>
                 <Link
-                  to="/contact"
+                  to="/about#contact"
                   className="px-2 py-2 rounded hover:bg-white/10"
                   onClick={() => setOpen(false)}
                 >

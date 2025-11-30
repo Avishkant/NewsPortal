@@ -12,8 +12,11 @@ export default function Pagination({
 
   const handlePerPage = (e) => {
     const v = Number(e.target.value) || 10;
+    // Notify parent of new per-page size. Parent is responsible for
+    // resetting to page 1 and reloading data. Avoid calling changePage(1)
+    // here to prevent double-calling onPageChange + onPerPageChange which
+    // can lead to concurrent loads using stale perPage values.
     onPerPageChange(v);
-    changePage(1);
   };
 
   const changePage = (p) => {

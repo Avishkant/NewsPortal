@@ -10,6 +10,7 @@ import Modal from "../components/Modal.jsx";
 import Pagination from "../components/Pagination.jsx";
 
 import Sidebar from "../components/Sidebar.jsx";
+import LazyImage from "../components/LazyImage.jsx";
 import {
   Users,
   FileText,
@@ -27,6 +28,7 @@ import {
   Menu,
   MapPin,
 } from "lucide-react";
+import { formatDate } from "../utils/formatDate.js";
 // ConfirmDialog handled globally via AuthContext
 import { useConfirm } from "../contexts/ConfirmContext.jsx";
 import { useSite } from "../contexts/SiteContext.jsx";
@@ -144,7 +146,20 @@ export default function OwnerDashboard() {
         setNews(resp);
         setTotalNews(resp.length);
       } else if (Array.isArray(resp.items)) {
-        setNews(resp.items);
+        // Ensure server items are displayed newest-first by published/created date
+        const getTime = (it) => {
+          if (!it) return 0;
+          return (
+            Date.parse(it.publishedAt) ||
+            Date.parse(it.createdAt) ||
+            Date.parse(it.updatedAt) ||
+            0
+          );
+        };
+        const sorted = (resp.items || [])
+          .slice()
+          .sort((a, b) => getTime(b) - getTime(a));
+        setNews(sorted);
         setTotalNews(Number(resp.total) || resp.items.length);
       } else {
         setNews([]);
@@ -283,18 +298,28 @@ export default function OwnerDashboard() {
           ]);
         setTotalNews(Number(allResp?.total) || 0);
         setTotalPending(Number(pendingResp?.total) || 0);
+        const getTime = (it) =>
+          Date.parse(it?.publishedAt) ||
+          Date.parse(it?.createdAt) ||
+          Date.parse(it?.updatedAt) ||
+          0;
+        const pendingArr = Array.isArray(pendingPreviewResp?.items)
+          ? pendingPreviewResp.items
+          : Array.isArray(pendingPreviewResp)
+          ? pendingPreviewResp
+          : [];
         setPendingItems(
-          Array.isArray(pendingPreviewResp?.items)
-            ? pendingPreviewResp.items
-            : Array.isArray(pendingPreviewResp)
-            ? pendingPreviewResp
-            : []
+          (pendingArr || []).slice().sort((a, b) => getTime(b) - getTime(a))
         );
         setDeletionRequestsCount(
           Array.isArray(delReqResp) ? delReqResp.length : 0
         );
+        const delReqArr = Array.isArray(delReqResp) ? delReqResp : [];
         setDeletionRequestsPreview(
-          Array.isArray(delReqResp) ? delReqResp.slice(0, 5) : []
+          (delReqArr || [])
+            .slice()
+            .sort((a, b) => getTime(b) - getTime(a))
+            .slice(0, 5)
         );
       } catch (err) {
         console.warn("Failed to load news summaries", err);
@@ -1055,53 +1080,7 @@ export default function OwnerDashboard() {
             </div>
           )}
 
-          {/* Quick Access to Pending Approvals (for Overview) */}
-          {activeTab === "overview" && totalPending > 0 && (
-            <section className="mb-8">
-              <h3 className="text-2xl font-semibold mb-4 text-[var(--accent)] flex items-center">
-                <Clock className="h-6 w-6 mr-2" /> Pending News for Review
-              </h3>
-              <div className="space-y-3">
-                {pendingItems.map((n) => (
-                  <div
-                    key={n._id}
-                    className="p-4 bg-white rounded-lg shadow-md border-l-4 border-amber-500 flex justify-between items-center transition hover:shadow-lg hover:bg-amber-50"
-                  >
-                    <div>
-                      <div className="font-medium text-gray-900">{n.title}</div>
-                      <div className="text-sm text-[var(--muted)]">
-                        {n.category} — by {n.author?.name}
-                      </div>
-                    </div>
-                    <div className="space-x-2 flex items-center">
-                      <button
-                        onClick={() => approveNews(n._id)}
-                        className="px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 transition flex items-center gap-2 text-sm font-medium"
-                        title="Approve"
-                      >
-                        <Check className="h-4 w-4" /> Approve
-                      </button>
-                      <button
-                        onClick={() => removeNews(n._id)}
-                        className="px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 transition flex items-center gap-2 text-sm font-medium"
-                        title="Delete"
-                      >
-                        <Trash className="h-4 w-4" /> Delete
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {totalPending > 5 && (
-                <button
-                  onClick={() => setActiveTab("pending")}
-                  className="mt-4 text-[var(--primary)] hover:text-teal-700 font-medium transition"
-                >
-                  View all {totalPending} pending items &rarr;
-                </button>
-              )}
-            </section>
-          )}
+          {/* Pending approvals quick-access removed from overview by request */}
 
           {/* Quick Access: Deletion Requests for Owner Review */}
           {activeTab === "overview" && deletionRequestsCount > 0 && (
@@ -1939,7 +1918,7 @@ export default function OwnerDashboard() {
                           {c.name}
                         </div>
                         <div className="text-sm text-[var(--muted)] font-mono">
-                          Created: {new Date(c.createdAt).toLocaleDateString()}
+                          Created: {formatDate(c.createdAt)}
                         </div>
                       </div>
                       <div className="flex gap-2">

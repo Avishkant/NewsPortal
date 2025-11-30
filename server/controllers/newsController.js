@@ -128,6 +128,16 @@ export async function listNews(req, res) {
 
   const total = await News.countDocuments(filter);
 
+  // For debugging: list matched IDs in sorted order to inspect pagination
+  try {
+    const matched = await News.find(filter)
+      .sort({ createdAt: -1 })
+      .select("_id createdAt status approved")
+      .lean();
+  } catch (e) {
+    /* ignore matched listing errors */
+  }
+
   const items = await News.find(filter)
     .populate("author", "name email")
     .sort({ createdAt: -1 })
@@ -136,55 +146,25 @@ export async function listNews(req, res) {
   // Try to ensure images are valid. To avoid making too many Cloudinary admin
   // API calls for large lists, validate only the first N items; for the rest
   // we fall back to constructing best-effort URLs.
+  // Build best-effort image URLs for items without performing Cloudinary
+  // admin API lookups. Admin API calls are relatively slow and block the
+  // response; for list endpoints we prefer responsive behavior and rely on
+  // the stored `image` field or construct a URL from `cloudinaryPublicId`.
   try {
-    const MAX_VALIDATE = 25;
-    const validateCount = Math.min(items.length, MAX_VALIDATE);
     for (let i = 0; i < items.length; i++) {
       const it = items[i];
       const hasImage = !!it.image;
       const looksLikeUrl = hasImage && /^https?:\/\//i.test(it.image);
-      if (it.cloudinaryPublicId && !looksLikeUrl) {
-        if (i < validateCount) {
-          try {
-            const info = await cloudinary.api.resource(it.cloudinaryPublicId);
-            if (info && info.secure_url) it.image = info.secure_url;
-            else
-              it.image = cloudinary.url(it.cloudinaryPublicId, {
-                secure: true,
-                fetch_format: "auto",
-                quality: "auto",
-              });
-          } catch (err) {
-            const isNotFound =
-              err &&
-              (err.http_code === 404 || /not found/i.test(err.message || ""));
-            if (isNotFound) {
-              it.image = null;
-            } else {
-              try {
-                it.image = cloudinary.url(it.cloudinaryPublicId, {
-                  secure: true,
-                  fetch_format: "auto",
-                  quality: "auto",
-                });
-              } catch (_) {
-                if (it.cloudinaryPublicId)
-                  it.image = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload/${it.cloudinaryPublicId}`;
-              }
-            }
-          }
-        } else {
-          // For items beyond the validation cap, build a best-effort URL.
-          try {
-            it.image = cloudinary.url(it.cloudinaryPublicId, {
-              secure: true,
-              fetch_format: "auto",
-              quality: "auto",
-            });
-          } catch (err) {
-            if (it.cloudinaryPublicId)
-              it.image = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload/${it.cloudinaryPublicId}`;
-          }
+      if (!looksLikeUrl && it.cloudinaryPublicId) {
+        try {
+          it.image = cloudinary.url(it.cloudinaryPublicId, {
+            secure: true,
+            fetch_format: "auto",
+            quality: "auto",
+          });
+        } catch (err) {
+          if (it.cloudinaryPublicId)
+            it.image = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload/${it.cloudinaryPublicId}`;
         }
       }
     }
@@ -210,6 +190,13 @@ export async function listMine(req, res) {
   const limit = Math.max(1, parseInt(req.query.limit || "10", 10));
   const skip = (page - 1) * limit;
 
+  // DEBUG: log incoming pagination query parameters to help trace issues
+  try {
+    // (debug logging removed)
+  } catch (e) {
+    /* ignore debug logging errors */
+  }
+
   const total = await News.countDocuments(filter);
 
   const items = await News.find(filter)
@@ -217,6 +204,12 @@ export async function listMine(req, res) {
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit);
+
+  try {
+    // (debug logging removed)
+  } catch (e) {
+    /* ignore */
+  }
 
   res.json({ items, total, page, limit });
 }
@@ -576,10 +569,12 @@ export async function deleteNews(req, res) {
       : news.author.toString() === String(req.user._id));
   if (!isOwnerDel && !isAuthorDel)
     return res.status(403).json({ message: "Forbidden" });
-  if (req.user.role === "reporter" && !news.approved) {
+  // Reporters may delete their own unapproved/pending articles, but they
+  // must not delete already-approved articles (owner control).
+  if (req.user.role === "reporter" && news.approved) {
     return res
       .status(403)
-      .json({ message: "Pending articles cannot be deleted by reporter" });
+      .json({ message: "Approved articles cannot be deleted by reporter" });
   }
 
   if (news.cloudinaryPublicId) {

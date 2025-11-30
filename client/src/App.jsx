@@ -4,6 +4,7 @@ import { ToastProvider } from "./contexts/ToastContext.jsx";
 import { ConfirmProvider } from "./contexts/ConfirmContext.jsx";
 import { SiteProvider } from "./contexts/SiteContext.jsx";
 import HindiNavbar from "./components/HindiNavbar.jsx";
+import ScrollToTop from "./components/ScrollToTop.jsx";
 import Login from "./pages/Login.jsx";
 import Signup from "./pages/Signup.jsx";
 import OwnerDashboard from "./pages/OwnerDashboard.jsx";
@@ -11,6 +12,8 @@ import ReporterDashboard from "./pages/ReporterDashboard.jsx";
 import NewsList from "./pages/NewsList.jsx";
 import NewsDetail from "./pages/NewsDetail.jsx";
 import About from "./pages/About.jsx";
+import PrivacyPolicy from "./pages/PrivacyPolicy.jsx";
+import Terms from "./pages/Terms.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import "./App.css";
 import Footer from "./components/Footer.jsx";
@@ -22,6 +25,7 @@ function App() {
         <ConfirmProvider>
           <ToastProvider>
             <SiteProvider>
+              <ScrollToTop />
               <HindiNavbar />
               {/* Keep the header full-width; center the main content below it */}
               <div className="max-w-7xl mx-auto">
@@ -57,6 +61,22 @@ function App() {
                       element={
                         <ErrorBoundary>
                           <About />
+                        </ErrorBoundary>
+                      }
+                    />
+                    <Route
+                      path="/privacy"
+                      element={
+                        <ErrorBoundary>
+                          <PrivacyPolicy />
+                        </ErrorBoundary>
+                      }
+                    />
+                    <Route
+                      path="/terms"
+                      element={
+                        <ErrorBoundary>
+                          <Terms />
                         </ErrorBoundary>
                       }
                     />

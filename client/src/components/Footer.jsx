@@ -11,7 +11,8 @@ export default function Footer() {
             <LazyImage
               src={logoSrc}
               alt="MP Network10 logo"
-              className="w-10 h-10 object-contain mr-3"
+              className="w-10 h-10 mr-3"
+              imgClassName="block w-full h-full object-contain"
             />
             <span className="text-2xl font-bold text-white">
               MP Network 10 News
@@ -21,27 +22,21 @@ export default function Footer() {
             Trusted local news covering stories that matter. Stay informed with
             accurate reporting from our community of reporters.
           </p>
+          {/* <div className="mt-3">
+            <Link
+              to="/news"
+              className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--primary)] text-white text-sm shadow-sm hover:opacity-95 transition"
+            >
+              Home
+            </Link>
+          </div> */}
         </div>
 
         <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-6">
           <div>
             <h4 className="text-sm font-semibold text-gray-900 mb-3">News</h4>
             <ul className="space-y-2 text-sm text-gray-300">
-              <li>
-                <Link to="/news" className="hover:text-gray-900">
-                  Home
-                </Link>
-              </li>
-              <li>
-                <Link to="/news?category=local" className="hover:text-white">
-                  Local
-                </Link>
-              </li>
-              <li>
-                <Link to="/news?category=business" className="hover:text-white">
-                  Business
-                </Link>
-              </li>
+              {/* News-specific links can go here */}
             </ul>
           </div>
 
@@ -56,7 +51,7 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link to="/contact" className="hover:text-white">
+                <Link to="/about#contact" className="hover:text-white">
                   Contact
                 </Link>
               </li>

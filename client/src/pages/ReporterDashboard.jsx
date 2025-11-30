@@ -1,4 +1,4 @@
-import { useEffect, useState, lazy, Suspense } from "react";
+import { useEffect, useState, lazy, Suspense, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import ErrorBoundary from "../components/ErrorBoundary.jsx";
 import Modal from "../components/Modal.jsx";
@@ -21,6 +21,7 @@ import {
   Menu,
   User,
 } from "lucide-react";
+import { formatDate } from "../utils/formatDate.js";
 import { useConfirm } from "../contexts/ConfirmContext.jsx";
 
 // --- Custom Components ---
@@ -97,6 +98,8 @@ export default function ReporterDashboard() {
   const [perPage, setPerPage] = useState(10);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  // request sequencing to avoid race conditions from overlapping loads
+  const requestSeqRef = useRef(0);
   const [totalAll, setTotalAll] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
   const [approvedCount, setApprovedCount] = useState(0);
@@ -105,12 +108,27 @@ export default function ReporterDashboard() {
   const load = async (opts = {}) => {
     if (!authFetch) return;
     setLoading(true);
+    const mySeq = ++requestSeqRef.current;
     try {
       const q = new URLSearchParams();
-      q.set("page", String(opts.page || page || 1));
-      q.set("limit", String(opts.limit || perPage || 10));
-      q.set("filter", String(opts.filter || filter || "all"));
-      const resp = await authFetch(`/api/news/mine?${q.toString()}`);
+      const requestedPage = String(opts.page || page || 1);
+      const requestedLimit = String(opts.limit || perPage || 10);
+      const requestedFilter = String(opts.filter || filter || "all");
+      q.set("page", requestedPage);
+      q.set("limit", requestedLimit);
+      q.set("filter", requestedFilter);
+      const qStr = q.toString();
+      // store last query string so we can ignore unrelated responses
+      requestSeqRef.current_query = qStr;
+      const resp = await authFetch(`/api/news/mine?${qStr}`);
+      // ignore stale responses (sequence mismatch)
+      if (mySeq !== requestSeqRef.current) {
+        return;
+      }
+      // ignore responses that don't match the last requested query string
+      if (requestSeqRef.current_query && requestSeqRef.current_query !== qStr) {
+        return;
+      }
       if (!resp || !Array.isArray(resp.items)) {
         console.error("Unexpected /api/news/mine response:", resp);
         const msg = resp?.message || String(resp || "");
@@ -125,11 +143,25 @@ export default function ReporterDashboard() {
         setTotal(0);
         return;
       }
-      setNews(resp.items);
+      // Ensure items are shown newest-first (by published/created/updated date)
+      const getTime = (it) => {
+        if (!it) return 0;
+        return (
+          Date.parse(it.publishedAt) ||
+          Date.parse(it.createdAt) ||
+          Date.parse(it.updatedAt) ||
+          0
+        );
+      };
+      setNews(
+        (resp.items || []).slice().sort((a, b) => getTime(b) - getTime(a))
+      );
       setTotal(Number(resp.total) || 0);
       // sync page/perPage from server response
       if (resp.page) setPage(Number(resp.page));
-      if (resp.limit) setPerPage(Number(resp.limit));
+      // Do NOT honour server-supplied `limit` here — keep `perPage` under
+      // local client control to avoid stray responses (e.g. summary calls)
+      // from changing the user's selected page size.
     } catch (err) {
       console.error("Failed to load news", err);
       showToast({ type: "error", message: "Failed to load your news" });
@@ -172,6 +204,25 @@ export default function ReporterDashboard() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, page, perPage, filter]);
+
+  // Explicit handlers to ensure load() is called immediately when user actions
+  const handleFilterChange = (f) => {
+    setFilter(f);
+    setPage(1);
+    // call load explicitly to avoid relying solely on effect timing
+    load({ page: 1, limit: perPage, filter: f });
+  };
+
+  const handlePageChange = (p) => {
+    setPage(p);
+    load({ page: p, limit: perPage });
+  };
+
+  const handlePerPageChange = (lim) => {
+    setPerPage(lim);
+    setPage(1);
+    load({ page: 1, limit: lim });
+  };
 
   // fetch summary counts (total, pending, approved)
   useEffect(() => {
@@ -395,10 +446,7 @@ export default function ReporterDashboard() {
               <div className="mt-2 sm:mt-0 flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    setFilter("all");
-                    setPage(1);
-                  }}
+                  onClick={() => handleFilterChange("all")}
                   className={`px-3 py-1 rounded ${
                     filter === "all"
                       ? "bg-[var(--primary)] text-white"
@@ -409,10 +457,7 @@ export default function ReporterDashboard() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setFilter("pending");
-                    setPage(1);
-                  }}
+                  onClick={() => handleFilterChange("pending")}
                   className={`px-3 py-1 rounded ${
                     filter === "pending"
                       ? "bg-yellow-500 text-white"
@@ -423,10 +468,7 @@ export default function ReporterDashboard() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setFilter("approved");
-                    setPage(1);
-                  }}
+                  onClick={() => handleFilterChange("approved")}
                   className={`px-3 py-1 rounded ${
                     filter === "approved"
                       ? "bg-green-600 text-white"
@@ -514,8 +556,7 @@ export default function ReporterDashboard() {
                             {n.title}
                           </div>
                           <div className="text-sm text-gray-600 break-words">
-                            {n.category} —{" "}
-                            {new Date(n.createdAt).toLocaleDateString()}
+                            {n.category} — {formatDate(n.createdAt)}
                           </div>
                         </div>
 
@@ -563,8 +604,8 @@ export default function ReporterDashboard() {
                     page={page}
                     perPage={perPage}
                     total={total}
-                    onPageChange={setPage}
-                    onPerPageChange={setPerPage}
+                    onPageChange={handlePageChange}
+                    onPerPageChange={handlePerPageChange}
                   />
                 </div>
               )}

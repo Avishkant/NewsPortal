@@ -7,6 +7,7 @@ export default function LazyImage({
   style = {},
   placeholder,
   fallback = "/vite.svg",
+  imgClassName = "",
   ...rest
 }) {
   const imgRef = useRef(null);
@@ -74,7 +75,9 @@ export default function LazyImage({
         <img
           src={current || fallback}
           alt={alt}
-          className={`block w-full h-full object-cover transition-opacity duration-500 ${
+          className={`${
+            imgClassName || "block w-full h-full object-cover"
+          } transition-opacity duration-500 ${
             loaded ? "opacity-100" : "opacity-0"
           }`}
           onLoad={() => setLoaded(true)}

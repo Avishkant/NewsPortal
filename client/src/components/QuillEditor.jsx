@@ -45,6 +45,7 @@ export default function QuillEditor({
   const [italicActive, setItalicActive] = useState(false);
   const [underlineActive, setUnderlineActive] = useState(false);
   const [fontFamily, setFontFamily] = useState("Arial");
+  const [fontSize, setFontSize] = useState("16px");
   const [foreColor, setForeColor] = useState("#000000");
   const [backColor, setBackColor] = useState("#FFFFFF");
 
@@ -126,6 +127,37 @@ export default function QuillEditor({
         ).fontFamily ||
         "";
       setFontFamily(f.replace(/"/g, "").split(",")[0].trim());
+      // update font size from command value or computed style
+      try {
+        const fsCmd = document.queryCommandValue("fontSize");
+        if (fsCmd) {
+          // some browsers return 1-7; fall back to computed style if needed
+          if (/^[1-7]$/.test(String(fsCmd))) {
+            // map 1-7 to px sizes (common mapping)
+            const map = {
+              1: "10px",
+              2: "13px",
+              3: "16px",
+              4: "18px",
+              5: "24px",
+              6: "32px",
+              7: "48px",
+            };
+            setFontSize(map[fsCmd] || "16px");
+          } else {
+            setFontSize(String(fsCmd));
+          }
+        } else {
+          const computed = window.getComputedStyle(
+            sel.anchorNode.nodeType === 3
+              ? sel.anchorNode.parentElement
+              : sel.anchorNode
+          ).fontSize;
+          setFontSize(computed || "16px");
+        }
+      } catch (e) {
+        /* ignore */
+      }
       setForeColor(
         document.queryCommandValue("foreColor") ||
           window.getComputedStyle(
@@ -223,6 +255,52 @@ export default function QuillEditor({
     if (url) exec("createLink", url);
   };
 
+  const applyFontSize = (size) => {
+    try {
+      // enable CSS-backed styling for font size where supported
+      if (
+        document.queryCommandSupported &&
+        document.queryCommandSupported("styleWithCSS")
+      ) {
+        document.execCommand("styleWithCSS", false, true);
+      }
+    } catch {}
+    try {
+      // some browsers accept px values, others accept 1-7 — we try px first
+      document.execCommand("fontSize", false, size);
+    } catch (err) {
+      try {
+        // fallback mapping to 1-7
+        const map = {
+          "10px": "1",
+          "13px": "2",
+          "16px": "3",
+          "18px": "4",
+          "24px": "5",
+          "32px": "6",
+          "48px": "7",
+        };
+        const v = map[size] || "3";
+        document.execCommand("fontSize", false, v);
+      } catch (e) {
+        void e;
+      }
+    }
+    // restore styleWithCSS to default (false)
+    try {
+      if (
+        document.queryCommandSupported &&
+        document.queryCommandSupported("styleWithCSS")
+      ) {
+        document.execCommand("styleWithCSS", false, false);
+      }
+    } catch {}
+
+    setFontSize(size);
+    onContentChange && onContentChange(ref.current?.innerHTML || "");
+    document.dispatchEvent(new Event("selectionchange"));
+  };
+
   const handleImage = () => {
     if (typeof handleImageUploadClick === "function") {
       handleImageUploadClick();
@@ -273,10 +351,27 @@ export default function QuillEditor({
           className="px-2 py-1 border rounded-lg bg-white text-sm text-gray-700 h-9 focus:ring-gray-800"
         >
           <option value="Arial">Arial</option>
+          <option value="Noto Sans Devanagari">Noto Sans Devanagari</option>
           <option value="Georgia">Georgia</option>
           <option value="Times New Roman">Times New Roman</option>
           <option value="Verdana">Verdana</option>
           <option value="monospace">Monospace</option>
+        </select>
+
+        {/* Font size selector */}
+        <select
+          aria-label="Font size"
+          value={fontSize}
+          onChange={(e) => applyFontSize(e.target.value)}
+          className="px-2 py-1 border rounded-lg bg-white text-sm text-gray-700 h-9 focus:ring-gray-800"
+        >
+          <option value="10px">10</option>
+          <option value="13px">13</option>
+          <option value="16px">16</option>
+          <option value="18px">18</option>
+          <option value="24px">24</option>
+          <option value="32px">32</option>
+          <option value="48px">48</option>
         </select>
 
         <ToolButton

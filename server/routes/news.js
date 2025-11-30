@@ -20,6 +20,26 @@ router.post("/", protect, asyncHandler(newsController.createNews));
 
 // mine
 router.get("/mine", protect, asyncHandler(newsController.listMine));
+// deletion requests (specific static path - must be defined before parameterized routes)
+router.get(
+  "/deletion-requests",
+  protect,
+  asyncHandler(newsController.listDeletionRequests)
+);
+
+// request-delete (specific action routes before generic :id)
+router.post(
+  "/:id/request-delete",
+  protect,
+  asyncHandler(newsController.requestDelete)
+);
+
+// handle deletion
+router.put(
+  "/:id/handle-deletion",
+  protect,
+  asyncHandler(newsController.handleDeletion)
+);
 
 // get by id
 router.get("/:id", optionalProtect, asyncHandler(newsController.getNewsById));
@@ -29,26 +49,5 @@ router.put("/:id", protect, asyncHandler(newsController.updateNews));
 
 // delete
 router.delete("/:id", protect, asyncHandler(newsController.deleteNews));
-
-// request-delete
-router.post(
-  "/:id/request-delete",
-  protect,
-  asyncHandler(newsController.requestDelete)
-);
-
-// deletion requests
-router.get(
-  "/deletion-requests",
-  protect,
-  asyncHandler(newsController.listDeletionRequests)
-);
-
-// handle deletion
-router.put(
-  "/:id/handle-deletion",
-  protect,
-  asyncHandler(newsController.handleDeletion)
-);
 
 export default router;

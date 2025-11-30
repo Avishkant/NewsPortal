@@ -74,7 +74,9 @@ export default function About() {
 
           <aside className="space-y-6">
             <div className="bg-white rounded-xl shadow p-6 text-center">
-              <h4 className="text-sm text-gray-500 uppercase mb-2">Contact</h4>
+              <h4 id="contact" className="text-sm text-gray-500 uppercase mb-2">
+                Contact
+              </h4>
               <div className="flex flex-col items-center gap-2">
                 <div className="text-gray-900 font-semibold">{editorName}</div>
                 <div className="text-sm text-gray-600">{editorTitle}</div>

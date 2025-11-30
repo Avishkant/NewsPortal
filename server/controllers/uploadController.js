@@ -1,5 +1,6 @@
 import { v2 as cloudinary } from "cloudinary";
 import asyncHandler from "express-async-handler";
+// logger removed: use console for runtime diagnostics
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,

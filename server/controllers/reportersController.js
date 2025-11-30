@@ -102,11 +102,10 @@ export const getReporterPublic = asyncHandler(async (req, res) => {
     }
   }
   if (!u) return res.status(404).json({ message: "Reporter not found" });
-  // Expose only public fields
+  // Expose only public fields (do not expose private contact info)
   const publicData = {
     id: u._id,
     name: u.name,
-    email: u.email,
     reporterId: u.reporterId || null,
     createdAt: u.createdAt,
   };

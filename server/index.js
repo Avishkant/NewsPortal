@@ -5,13 +5,20 @@ import "dotenv/config";
 import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
+// logger removed: use console.* directly
+import errorHandler from "./middleware/errorHandler.js";
 import path from "path";
 
-// Quick runtime check (non-sensitive): confirm Cloudinary vars are present.
-console.log(
-  "env check: CLOUDINARY_API_KEY present?",
-  !!process.env.CLOUDINARY_API_KEY
-);
+// Avoid noisy env checks in production
+if (process.env.NODE_ENV !== "production") {
+  // Quick runtime check (non-sensitive): confirm Cloudinary vars are present.
+  console.debug(
+    "env check: CLOUDINARY_API_KEY present?",
+    !!process.env.CLOUDINARY_API_KEY
+  );
+}
 
 import authRoutes from "./routes/auth.js";
 import newsRoutes from "./routes/news.js";
@@ -35,6 +42,14 @@ const allowedOrigins = rawFrontend
   .split(",")
   .map((s) => s.trim())
   .filter(Boolean);
+
+// In production require at least one allowed frontend origin to be configured
+if (process.env.NODE_ENV === "production" && allowedOrigins.length === 0) {
+  console.error(
+    "FRONTEND_URL or FRONTEND_URLS must be set in production to restrict CORS"
+  );
+  process.exit(1);
+}
 
 app.use(
   cors({
@@ -70,7 +85,18 @@ app.use(
     credentials: true,
   })
 );
-app.use(express.json());
+// Basic security headers
+app.use(helmet());
+
+// Rate limiting: apply to all requests to mitigate brute-force and excessive traffic
+const limiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 120, // limit each IP to 120 requests per windowMs
+});
+app.use(limiter);
+
+// Limit JSON body size to avoid large payload abuse
+app.use(express.json({ limit: "100kb" }));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/news", newsRoutes);
@@ -84,7 +110,11 @@ app.get("/", (req, res) => res.json({ ok: true }));
 
 async function start() {
   if (!MONGO_URI) {
-    console.error("MONGO_URI not set in .env");
+    console.error("MONGO_URI not set in environment");
+    process.exit(1);
+  }
+  if (!process.env.JWT_SECRET) {
+    console.error("JWT_SECRET not set in environment");
     process.exit(1);
   }
 
@@ -104,3 +134,6 @@ async function start() {
 }
 
 start();
+
+// Attach generic error handler after all routes
+app.use(errorHandler);

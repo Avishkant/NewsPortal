@@ -2,6 +2,7 @@ import News from "../models/News.js";
 import District from "../models/District.js";
 import Category from "../models/Category.js";
 import { v2 as cloudinary } from "cloudinary";
+// logger removed: use console.* instead
 
 // Helper: strip HTML tags and entities for server-side validation
 function stripHtml(s = "") {
@@ -123,7 +124,9 @@ export async function listNews(req, res) {
 
   // pagination
   const page = Math.max(1, parseInt(req.query.page || "1", 10));
-  const limit = Math.max(1, parseInt(req.query.limit || "10", 10));
+  let limit = Math.max(1, parseInt(req.query.limit || "10", 10));
+  // enforce an upper bound on page size to avoid heavy responses
+  if (limit > 100) limit = 100;
   const skip = (page - 1) * limit;
 
   const total = await News.countDocuments(filter);
@@ -138,8 +141,12 @@ export async function listNews(req, res) {
     /* ignore matched listing errors */
   }
 
+  const authorSelect =
+    req.user && req.user.role === "owner"
+      ? "name email reporterId"
+      : "name reporterId";
   const items = await News.find(filter)
-    .populate("author", "name email")
+    .populate("author", authorSelect)
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit);
@@ -187,7 +194,8 @@ export async function listMine(req, res) {
     filter.approved = { $ne: false };
   }
   const page = Math.max(1, parseInt(req.query.page || "1", 10));
-  const limit = Math.max(1, parseInt(req.query.limit || "10", 10));
+  let limit = Math.max(1, parseInt(req.query.limit || "10", 10));
+  if (limit > 100) limit = 100;
   const skip = (page - 1) * limit;
 
   // DEBUG: log incoming pagination query parameters to help trace issues
@@ -199,8 +207,9 @@ export async function listMine(req, res) {
 
   const total = await News.countDocuments(filter);
 
+  // listMine is private to the user; include email for convenience
   const items = await News.find(filter)
-    .populate("author", "name email")
+    .populate("author", "name email reporterId")
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit);
@@ -225,8 +234,12 @@ export async function headlines(req, res) {
     }
   }
 
+  const authorSelect =
+    req.user && req.user.role === "owner"
+      ? "name email reporterId"
+      : "name reporterId";
   let items = await News.find(baseFilter)
-    .populate("author", "name email")
+    .populate("author", authorSelect)
     .sort({ createdAt: -1 })
     .limit(5);
 
@@ -240,7 +253,7 @@ export async function headlines(req, res) {
       }
     }
     items = await News.find(recentFilter)
-      .populate("author", "name email")
+      .populate("author", authorSelect)
       .sort({ createdAt: -1 })
       .limit(5);
   }
@@ -290,7 +303,6 @@ export async function headlines(req, res) {
 
 // Create a news item (reporter or owner)
 export async function createNews(req, res) {
-  console.log("POST /api/news body:", req.body);
   let {
     title,
     slug,
@@ -301,6 +313,19 @@ export async function createNews(req, res) {
     district,
     youtubeLink,
   } = req.body || {};
+
+  // Basic input normalization & limits to avoid huge payloads
+  title = title ? String(title).trim().slice(0, 300) : title;
+  slug = slug ? String(slug).trim().slice(0, 200) : slug;
+  content = content ? String(content) : content;
+  if (content && content.length > 200_000) {
+    return res.status(400).json({ message: "Content too large" });
+  }
+  category = category ? String(category).trim().slice(0, 100) : category;
+  district = district ? String(district).trim().slice(0, 100) : district;
+  youtubeLink = youtubeLink
+    ? String(youtubeLink).trim().slice(0, 500)
+    : youtubeLink;
 
   const missing = [];
   if (!title || !String(title).trim()) missing.push("title");
@@ -347,11 +372,15 @@ export async function createNews(req, res) {
 
 // Get a news item by id and increment views
 export async function getNewsById(req, res) {
+  const authorSelect =
+    req.user && req.user.role === "owner"
+      ? "name email reporterId"
+      : "name reporterId";
   const news = await News.findByIdAndUpdate(
     req.params.id,
     { $inc: { views: 1 } },
     { new: true }
-  ).populate("author", "name email");
+  ).populate("author", authorSelect);
   if (!news) return res.status(404).json({ message: "Not found" });
   if (!news.approved) {
     const isOwner = req.user && req.user.role === "owner";
@@ -492,9 +521,11 @@ export async function updateNews(req, res) {
       draft.slug = draft.slug + "-" + Math.random().toString(36).slice(2, 8);
 
     const created = await News.create(draft);
-    console.log(
-      `Created draft ${created._id} by reporter ${req.user._id} to replace ${news._id}`
-    );
+    if (process.env.NODE_ENV !== "production") {
+      console.debug(
+        `Created draft ${created._id} by reporter ${req.user._id} to replace ${news._id}`
+      );
+    }
     return res.status(201).json(created);
   }
 
@@ -502,7 +533,22 @@ export async function updateNews(req, res) {
     if (k === "imagePublicId") return;
     if ((k === "approved" || k === "status") && req.user.role !== "owner")
       return;
-    if (req.body[k] !== undefined) news[k] = req.body[k];
+    if (req.body[k] !== undefined) {
+      // sanitize certain fields before assignment
+      if (k === "title") news.title = String(req.body.title).slice(0, 300);
+      else if (k === "slug") news.slug = String(req.body.slug).slice(0, 200);
+      else if (k === "content") {
+        const c = String(req.body.content);
+        if (c.length > 200_000) return; // ignore too large update
+        news.content = c;
+      } else if (k === "category")
+        news.category = String(req.body.category).slice(0, 100);
+      else if (k === "district")
+        news.district = String(req.body.district).slice(0, 100);
+      else if (k === "youtubeLink")
+        news.youtubeLink = String(req.body.youtubeLink).slice(0, 500);
+      else news[k] = req.body[k];
+    }
   });
 
   await news.save();

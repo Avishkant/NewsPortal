@@ -22,6 +22,7 @@ import {
   User,
 } from "lucide-react";
 import { formatDate } from "../utils/formatDate.js";
+import ReporterIdCard from "../components/ReporterIdCard.jsx";
 import { useConfirm } from "../contexts/ConfirmContext.jsx";
 
 // --- Custom Components ---
@@ -178,7 +179,10 @@ export default function ReporterDashboard() {
     (async () => {
       try {
         const cats = await authFetch("/api/categories");
-        setCategories(Array.isArray(cats) ? cats : []);
+        // API may return either an array or a paginated object { items, total }
+        if (Array.isArray(cats)) setCategories(cats);
+        else if (cats && Array.isArray(cats.items)) setCategories(cats.items);
+        else setCategories([]);
       } catch (err) {
         console.warn(
           "ReporterDashboard: failed to load categories",
@@ -417,22 +421,7 @@ export default function ReporterDashboard() {
               </>
             }
           >
-            <div className="space-y-3">
-              <div className="text-sm text-gray-500">Name</div>
-              <div className="font-semibold text-gray-900">
-                {user.name || "-"}
-              </div>
-
-              <div className="text-sm text-gray-500">Email</div>
-              <div className="text-sm text-gray-700 break-words">
-                {user.email || "-"}
-              </div>
-
-              <div className="text-sm text-gray-500">Reporter ID</div>
-              <div className="text-sm font-mono text-gray-700 break-words">
-                {user.reporterId || "—"}
-              </div>
-            </div>
+            <ReporterIdCard user={user} />
           </Modal>
         )}
 

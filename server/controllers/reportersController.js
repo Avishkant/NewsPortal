@@ -88,3 +88,27 @@ export const deleteReporter = asyncHandler(async (req, res) => {
   await User.findByIdAndDelete(u._id);
   res.json({ message: "Removed" });
 });
+
+export const getReporterPublic = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  if (!id) return res.status(400).json({ message: "Missing id" });
+  // Try to find by reporterId first, then by _id
+  let u = await User.findOne({ reporterId: id }).select("-password");
+  if (!u) {
+    try {
+      u = await User.findById(id).select("-password");
+    } catch (err) {
+      // ignore cast errors
+    }
+  }
+  if (!u) return res.status(404).json({ message: "Reporter not found" });
+  // Expose only public fields
+  const publicData = {
+    id: u._id,
+    name: u.name,
+    email: u.email,
+    reporterId: u.reporterId || null,
+    createdAt: u.createdAt,
+  };
+  res.json(publicData);
+});

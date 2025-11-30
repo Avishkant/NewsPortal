@@ -9,6 +9,7 @@ import Login from "./pages/Login.jsx";
 import Signup from "./pages/Signup.jsx";
 import OwnerDashboard from "./pages/OwnerDashboard.jsx";
 import ReporterDashboard from "./pages/ReporterDashboard.jsx";
+import ReporterProfile from "./pages/ReporterProfile.jsx";
 import NewsList from "./pages/NewsList.jsx";
 import NewsDetail from "./pages/NewsDetail.jsx";
 import About from "./pages/About.jsx";
@@ -101,6 +102,14 @@ function App() {
                       element={
                         <ErrorBoundary>
                           <ReporterDashboard />
+                        </ErrorBoundary>
+                      }
+                    />
+                    <Route
+                      path="/reporter/:id"
+                      element={
+                        <ErrorBoundary>
+                          <ReporterProfile />
                         </ErrorBoundary>
                       }
                     />

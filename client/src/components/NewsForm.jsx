@@ -972,7 +972,8 @@ export default function NewsForm({
         res = await authFetch("/api/news", { method: "POST", body });
       }
       if (res && (res._id || res.id)) {
-        showToast({ type: "success", message: "News saved" });
+        // Avoid duplicate toasts: parent (e.g. Reporter/Owner dashboard)
+        // already displays a success toast in its `onSaved` handler.
         onSaved && onSaved();
       } else {
         const msg = res?.message || "Failed to save news";

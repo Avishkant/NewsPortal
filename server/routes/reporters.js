@@ -15,6 +15,9 @@ router.get(
   asyncHandler(reportersController.listReporters)
 );
 
+// Public reporter profile (by reporterId or user id)
+router.get("/public/:id", asyncHandler(reportersController.getReporterPublic));
+
 router.post(
   "/",
   protect,

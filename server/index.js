@@ -27,6 +27,7 @@ import uploadRoutes from "./routes/upload.js";
 import categoriesRoutes from "./routes/categories.js";
 import districtsRoutes from "./routes/districts.js";
 import siteRoutes from "./routes/site.js";
+import { v2 as cloudinary } from "cloudinary";
 
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI;
@@ -108,6 +109,82 @@ app.use("/api/site", siteRoutes);
 
 app.get("/", (req, res) => res.json({ ok: true }));
 
+// Daily cleanup scheduler: deletes news older than NEWS_RETENTION_DAYS (default 35)
+function initCleanupScheduler() {
+  try {
+    const { CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET } =
+      process.env;
+    if (CLOUDINARY_CLOUD_NAME && CLOUDINARY_API_KEY && CLOUDINARY_API_SECRET) {
+      cloudinary.config({
+        cloud_name: CLOUDINARY_CLOUD_NAME,
+        api_key: CLOUDINARY_API_KEY,
+        api_secret: CLOUDINARY_API_SECRET,
+      });
+    }
+
+    const DAYS = Number(process.env.NEWS_RETENTION_DAYS || 35);
+    const millisInDay = 24 * 60 * 60 * 1000;
+
+    const runCleanup = async () => {
+      try {
+        const cutoff = new Date(Date.now() - DAYS * millisInDay);
+        const News = (await import("./models/News.js")).default;
+        const docs = await News.find({ createdAt: { $lt: cutoff } });
+        let deleted = 0;
+        let removedImages = 0;
+        for (const doc of docs) {
+          try {
+            if (doc.cloudinaryPublicId && cloudinary.config().cloud_name) {
+              try {
+                const res = await cloudinary.uploader.destroy(
+                  doc.cloudinaryPublicId
+                );
+                if (res && (res.result === "ok" || res.result === "not found"))
+                  removedImages++;
+              } catch {}
+            }
+            await News.deleteOne({ _id: doc._id });
+            deleted++;
+          } catch {}
+        }
+        console.log(
+          `Daily cleanup: deleted ${deleted} old news, removed ${removedImages} images`
+        );
+      } catch (e) {
+        console.warn("Daily cleanup failed", e?.message || e);
+      } finally {
+        scheduleNextRun();
+      }
+    };
+
+    const nextRunTime = () => {
+      const now = new Date();
+      const next = new Date(now);
+      next.setHours(2, 30, 0, 0); // 02:30 server time
+      if (next <= now) next.setTime(next.getTime() + millisInDay);
+      return next;
+    };
+
+    const scheduleNextRun = () => {
+      const next = nextRunTime();
+      const delay = next.getTime() - Date.now();
+      console.log(`Daily cleanup scheduled at ${next.toISOString()}`);
+      setTimeout(runCleanup, delay);
+    };
+
+    // optional immediate run on startup
+    if (
+      String(process.env.NEWS_CLEANUP_RUN_ON_START).toLowerCase() === "true"
+    ) {
+      runCleanup();
+    } else {
+      scheduleNextRun();
+    }
+  } catch (e) {
+    // scheduler is optional; do not crash app
+  }
+}
+
 async function start() {
   if (!MONGO_URI) {
     console.error("MONGO_URI not set in environment");
@@ -125,7 +202,8 @@ async function start() {
     // optional: seed owner if env vars provided
     const { seedOwner } = await import("./utils/seedOwner.js");
     await seedOwner();
-
+    // start daily cleanup scheduler after DB is connected
+    initCleanupScheduler();
     app.listen(PORT, () => console.log(`Server listening on ${PORT}`));
   } catch (err) {
     console.error("Failed to start server", err);

@@ -14,11 +14,11 @@ export default function Footer() {
               className="w-10 h-10 mr-3"
               imgClassName="block w-full h-full object-contain"
             />
-            <span className="text-2xl font-bold text-white">
+            <span className="text-2xl font-bold text-white truncate">
               MP Network 10 News
             </span>
           </Link>
-          <p className="text-sm text-gray-300 max-w-md">
+          <p className="text-sm text-gray-300 max-w-full sm:max-w-md">
             Trusted local news covering stories that matter. Stay informed with
             accurate reporting from our community of reporters.
           </p>
@@ -32,9 +32,9 @@ export default function Footer() {
           </div> */}
         </div>
 
-        <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-6">
+        <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-6">
           <div>
-            <h4 className="text-sm font-semibold text-gray-900 mb-3">News</h4>
+            <h4 className="text-sm font-semibold text-gray-100 mb-3">News</h4>
             <ul className="space-y-2 text-sm text-gray-300">
               {/* News-specific links can go here */}
             </ul>
